@@ -6,6 +6,7 @@ from typing import Optional
 from decimal import Decimal
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
+from sqlalchemy import text as _text
 
 from database import get_db
 from database.models import User, PermissionType
@@ -13,7 +14,7 @@ from core.dependencies import get_current_active_user, PermissionChecker
 from schemas.customer import (
     CustomerCreate, CustomerUpdate, CustomerResponse, CustomerListResponse,
     CustomerSearchParams, CustomerDebtListResponse, CustomerPaymentRequest,
-    CustomerAdvanceRequest, VIPCredentialsCreate
+    CustomerAdvanceRequest, AddDebtRequest, VIPCredentialsCreate
 )
 from schemas.base import SuccessResponse, DeleteResponse
 from services.customer import CustomerService
@@ -59,6 +60,17 @@ async def get_customers(
     
     customers, total = service.get_customers(page, per_page, params)
     
+    # Fetch current_debt_usd fresh from DB (bypass ORM cache)
+    customer_ids = [c.id for c in customers]
+    usd_debt_map = {}
+    if customer_ids:
+        # Build SQL with literal IDs (safe - IDs are integers)
+        ids_str = ",".join(str(int(cid)) for cid in customer_ids)
+        rows = db.execute(
+            _text(f"SELECT id, COALESCE(current_debt_usd, 0) FROM customers WHERE id IN ({ids_str})")
+        ).fetchall()
+        usd_debt_map = {r[0]: float(r[1]) for r in rows}
+
     data = [{
         "id": c.id,
         "name": c.name,
@@ -75,6 +87,7 @@ async def get_customers(
         "total_purchases": c.total_purchases or Decimal("0"),
         "is_active": c.is_active,
         "manager_id": c.manager_id,
+        "current_debt_usd": usd_debt_map.get(c.id, 0.0),
         "manager_name": c.manager.full_name if c.manager else None,
         "category_id": c.category_id,
         "category_name": c.category.name if c.category else None,
@@ -113,11 +126,26 @@ async def get_debtors(
         "credit_limit": c.credit_limit or Decimal("0"),
         "last_purchase_date": c.last_purchase_date.isoformat() if c.last_purchase_date else None
     } for c in debtors]
+
+    # Fetch current_debt_usd fresh for debtors
+    debtor_ids = [c.id for c in debtors]
+    usd_map = {}
+    if debtor_ids:
+        ids_str_d = ",".join(str(int(cid)) for cid in debtor_ids)
+        usd_rows = db.execute(
+            _text(f"SELECT id, COALESCE(current_debt_usd,0) FROM customers WHERE id IN ({ids_str_d})")
+        ).fetchall()
+        usd_map = {r[0]: float(r[1]) for r in usd_rows}
+    for item in data:
+        item["current_debt_usd"] = usd_map.get(item["id"], 0.0)
     
     return {
         "success": True,
         "data": data,
         "total_debt": total_debt,
+        "total_debt_usd": float(db.execute(
+            _text("SELECT COALESCE(SUM(current_debt_usd),0) FROM customers WHERE is_deleted=false AND current_debt_usd > 0"),
+        ).scalar() or 0),
         "debtors_count": len(debtors)
     }
 
@@ -293,6 +321,30 @@ async def assign_customer_category(
     db.commit()
     return {"success": True, "message": "Kategoriya yangilandi"}
 
+
+
+@router.get(
+    "/usd-debts",
+    summary="Mijozlar USD qarzlari (fresh)"
+)
+async def get_customers_usd_debts(
+    ids: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """Return {id: usd_debt} map for given customer IDs. Always reads fresh from DB."""
+    try:
+        id_list = [int(x.strip()) for x in ids.split(",") if x.strip().isdigit()]
+    except Exception:
+        return {}
+    if not id_list:
+        return {}
+    ids_str = ",".join(str(i) for i in id_list)
+    rows = db.execute(
+        _text(f"SELECT id, COALESCE(current_debt_usd, 0) FROM customers WHERE id IN ({ids_str})")
+    ).fetchall()
+    return {r[0]: float(r[1]) for r in rows}
+
 @router.get(
     "/{customer_id}",
     response_model=CustomerResponse,
@@ -310,7 +362,14 @@ async def get_customer(
     if not customer:
         raise HTTPException(status_code=404, detail="Mijoz topilmadi")
     
-    return CustomerResponse.model_validate(customer)
+    result = CustomerResponse.model_validate(customer)
+    # Override current_debt_usd with fresh raw SQL value
+    usd_val = db.execute(
+        _text("SELECT COALESCE(current_debt_usd,0) FROM customers WHERE id=:id"),
+        {"id": customer_id}
+    ).scalar()
+    result.current_debt_usd = float(usd_val or 0)
+    return result
 
 
 @router.post(
@@ -449,6 +508,7 @@ async def get_customer_debt_history(
         "reference_type": r.reference_type,
         "reference_id": r.reference_id,
         "description": r.description,
+        "currency": getattr(r, 'currency', 'UZS') or 'UZS',
         "created_by_name": f"{r.created_by.first_name} {r.created_by.last_name}" if r.created_by else None,
         "created_at": r.created_at.isoformat()
     } for r in records]
@@ -458,6 +518,10 @@ async def get_customer_debt_history(
         "data": data,
         "total": total,
         "current_debt": customer.current_debt,
+        "current_debt_usd": float(db.execute(
+            _text("SELECT COALESCE(current_debt_usd,0) FROM customers WHERE id=:id"),
+            {"id": customer_id}
+        ).scalar() or 0),
         "advance_balance": customer.advance_balance
     }
 
@@ -483,12 +547,17 @@ async def pay_customer_debt(
     
     previous_debt = float(customer_before.current_debt) if customer_before else 0
     
-    success, message, change = service.pay_debt(
-        customer_id,
-        data.amount,
-        data.payment_type,
-        data.description,
-        current_user.id
+    # Use unified payment method supporting all 4 scenarios
+    from decimal import Decimal as _Dec
+    success, message, change = service.pay_debt_unified(
+        customer_id=customer_id,
+        amount=data.amount,
+        currency=getattr(data, 'currency', 'UZS'),
+        target_debt=getattr(data, 'target_debt', 'UZS'),
+        exchange_rate=getattr(data, 'exchange_rate', None),
+        payment_type=data.payment_type,
+        description=data.description,
+        created_by_id=current_user.id
     )
     
     if not success:
@@ -521,6 +590,10 @@ async def pay_customer_debt(
         "message": message,
         "change_amount": change,
         "current_debt": customer.current_debt,
+        "current_debt_usd": float(db.execute(
+            _text("SELECT COALESCE(current_debt_usd,0) FROM customers WHERE id=:id"),
+            {"id": customer_id}
+        ).scalar() or 0),
         "advance_balance": customer.advance_balance
     }
 
@@ -568,38 +641,47 @@ async def add_customer_advance(
 )
 async def add_manual_debt(
     customer_id: int,
-    data: CustomerPaymentRequest,
+    data: AddDebtRequest,
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
-    """
-    Manually add debt to customer with comment.
-    Used for adding old debts, corrections, etc.
-    """
+    """Manually add debt to customer (UZS or USD)."""
     service = CustomerService(db)
 
     customer = service.get_customer_by_id(customer_id)
     if not customer:
         raise HTTPException(status_code=404, detail="Mijoz topilmadi")
 
-    success, message = service.add_debt(
-        customer_id=customer_id,
-        amount=data.amount,
-        reference_type="manual_adjustment",
-        description=data.description or "Qo'shimcha qarz qo'shildi",
-        created_by_id=current_user.id
-    )
+    currency = getattr(data, 'currency', 'UZS').upper()
+
+    if currency == 'USD':
+        success, message = service.add_debt_usd(
+            customer_id=customer_id,
+            amount_usd=data.amount,
+            description=data.description or "Dollar qarz qo'shildi",
+            created_by_id=current_user.id
+        )
+    else:
+        success, message = service.add_debt(
+            customer_id=customer_id,
+            amount=data.amount,
+            reference_type="manual_adjustment",
+            description=data.description or "So'm qarz qo'shildi",
+            created_by_id=current_user.id
+        )
 
     if not success:
         raise HTTPException(status_code=400, detail=message)
 
-    # Refresh customer data
     db.refresh(customer)
-
     return {
         "success": True,
         "message": message,
-        "current_debt": customer.current_debt
+        "current_debt": customer.current_debt,
+        "current_debt_usd": float(db.execute(
+            _text("SELECT COALESCE(current_debt_usd,0) FROM customers WHERE id=:id"),
+            {"id": customer_id}
+        ).scalar() or 0)
     }
 
 

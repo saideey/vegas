@@ -7,7 +7,7 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Optional, List, Tuple
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import or_, func
+from sqlalchemy import or_, func, text
 
 from database.models import Customer, CustomerDebt, CustomerType, CustomerCategory, AuditLog
 from core.security import get_password_hash, verify_password
@@ -131,7 +131,7 @@ class CustomerService:
             phone_secondary=data.phone_secondary,
             email=data.email,
             address=data.address,
-            customer_type=data.customer_type,
+            customer_type=data.customer_type.upper() if isinstance(data.customer_type, str) else data.customer_type,
             credit_limit=data.credit_limit,
             personal_discount_percent=data.personal_discount_percent,
             inn=data.inn,
@@ -155,24 +155,49 @@ class CustomerService:
         self.db.add(customer)
         self.db.flush()
         
-        # Handle initial debt if provided
-        initial_debt = getattr(data, 'initial_debt_amount', None)
-        if initial_debt and Decimal(str(initial_debt)) > 0:
-            debt_amount = Decimal(str(initial_debt))
-            customer.current_debt = debt_amount
+        # Handle initial debt if provided (UZS + USD separately)
+        total_initial_debt = Decimal("0")
+        debt_note = getattr(data, 'initial_debt_note', '') or "Boshlang'ich qarz"
 
-            debt_note = getattr(data, 'initial_debt_note', '') or "Boshlang'ich qarz"
-            debt_record = CustomerDebt(
+        # UZS debt
+        initial_debt_uzs = getattr(data, 'initial_debt_amount', None)
+        if initial_debt_uzs and Decimal(str(initial_debt_uzs)) > 0:
+            uzs_amount = Decimal(str(initial_debt_uzs))
+            total_initial_debt += uzs_amount
+            customer.current_debt = uzs_amount
+            debt_record_uzs = CustomerDebt(
                 customer_id=customer.id,
                 transaction_type='debt',
-                amount=debt_amount,
+                amount=uzs_amount,
                 balance_before=Decimal("0"),
-                balance_after=debt_amount,
+                balance_after=uzs_amount,
                 reference_type='adjustment',
-                description=debt_note,
+                description=f"{debt_note} (so'm)",
                 created_by_id=created_by_id
             )
-            self.db.add(debt_record)
+            self.db.add(debt_record_uzs)
+
+        # USD debt — stored separately in current_debt_usd via raw SQL
+        initial_debt_usd = getattr(data, 'initial_debt_amount_usd', None)
+        if initial_debt_usd and Decimal(str(initial_debt_usd)) > 0:
+            usd_amount = Decimal(str(initial_debt_usd))
+            # Use raw SQL to bypass ORM caching issue with ALTER TABLE columns
+            self.db.execute(
+                text("UPDATE customers SET current_debt_usd = :val WHERE id = :id"),
+                {"val": float(usd_amount), "id": customer.id}
+            )
+            debt_record_usd = CustomerDebt(
+                customer_id=customer.id,
+                transaction_type='debt',
+                amount=usd_amount,
+                balance_before=Decimal("0"),
+                balance_after=usd_amount,
+                reference_type='adjustment_usd',
+                currency='USD',
+                description=f"{debt_note} (dollar)",
+                created_by_id=created_by_id
+            )
+            self.db.add(debt_record_usd)
 
         self._log_action(created_by_id, "create", "customers", customer.id, f"Mijoz yaratildi: {customer.name}")
 
@@ -200,6 +225,9 @@ class CustomerService:
 
         for field, value in update_data.items():
             if hasattr(customer, field):
+                # customer_type enum must be uppercase in DB
+                if field == 'customer_type' and isinstance(value, str):
+                    value = value.upper()
                 setattr(customer, field, value)
 
         # Handle debt adjustment if provided
@@ -301,6 +329,51 @@ class CustomerService:
         self.db.commit()
         return True, f"Qarz qo'shildi. Joriy qarz: {new_debt:,.0f} so'm"
 
+
+    def add_debt_usd(
+        self,
+        customer_id: int,
+        amount_usd: Decimal,
+        description: str = None,
+        created_by_id: int = None
+    ) -> Tuple[bool, str]:
+        """Add USD debt to customer separately."""
+        customer = self.get_customer_by_id(customer_id)
+        if not customer:
+            return False, "Mijoz topilmadi"
+
+        if customer.current_debt_usd is None:
+            customer.current_debt_usd = Decimal("0")
+
+        # Get current USD debt directly from DB (bypass ORM cache)
+        row = self.db.execute(
+            text("SELECT COALESCE(current_debt_usd, 0) FROM customers WHERE id = :id"),
+            {"id": customer_id}
+        ).fetchone()
+        balance_before = Decimal(str(row[0])) if row else Decimal("0")
+        new_usd = balance_before + amount_usd
+
+        # Use raw SQL to update (ORM may not detect ALTER TABLE columns)
+        self.db.execute(
+            text("UPDATE customers SET current_debt_usd = :val WHERE id = :id"),
+            {"val": float(new_usd), "id": customer_id}
+        )
+
+        debt_record = CustomerDebt(
+            customer_id=customer_id,
+            transaction_type="DEBT_INCREASE",
+            amount=amount_usd,
+            balance_before=balance_before,
+            balance_after=new_usd,
+            reference_type="adjustment_usd",
+            currency='USD',
+            description=description or f"Dollar qarz qo'shildi (+${amount_usd:,.2f})",
+            created_by_id=created_by_id
+        )
+        self.db.add(debt_record)
+        self.db.commit()
+        return True, f"Dollar qarz qo'shildi. Joriy dollar qarz: ${new_usd:,.2f}"
+
     def pay_debt(
         self,
         customer_id: int,
@@ -375,6 +448,187 @@ class CustomerService:
             )
 
             return True, f"To'lov qabul qilindi. Qoldiq qarz: {customer.current_debt:,.0f} so'm", Decimal("0")
+
+
+    def pay_debt_usd(
+        self,
+        customer_id: int,
+        amount_usd: Decimal,
+        payment_type: str = "CASH",
+        description: str = None,
+        created_by_id: int = None
+    ) -> Tuple[bool, str, Decimal]:
+        """Pay customer USD debt separately."""
+        customer = self.get_customer_by_id(customer_id)
+        if not customer:
+            return False, "Mijoz topilmadi", Decimal("0")
+
+        if customer.current_debt_usd is None:
+            customer.current_debt_usd = Decimal("0")
+
+        balance_before = customer.current_debt_usd
+
+        if amount_usd >= customer.current_debt_usd:
+            customer.current_debt_usd = Decimal("0")
+        else:
+            customer.current_debt_usd -= amount_usd
+
+        debt_record = CustomerDebt(
+            customer_id=customer_id,
+            transaction_type="DEBT_PAYMENT",
+            amount=amount_usd,
+            balance_before=balance_before,
+            balance_after=customer.current_debt_usd,
+            reference_type="adjustment_usd",
+            currency='USD',
+            description=description or f"Dollar qarz to'lovi ({payment_type})",
+            created_by_id=created_by_id
+        )
+        self.db.add(debt_record)
+        self.db.commit()
+        return True, f"Dollar to'lov qabul qilindi. Qoldiq: ${customer.current_debt_usd:,.2f}", Decimal("0")
+
+
+    def pay_debt_unified(
+        self,
+        customer_id: int,
+        amount: Decimal,
+        currency: str = "UZS",
+        target_debt: str = "UZS",
+        exchange_rate: Decimal = None,
+        payment_type: str = "CASH",
+        description: str = None,
+        created_by_id: int = None
+    ) -> Tuple[bool, str, Decimal]:
+        """
+        Unified debt payment with 4 scenarios:
+        1. UZS paid → UZS debt: direct deduction
+        2. USD paid → USD debt: direct deduction in USD
+        3. USD paid → UZS debt: convert USD→UZS at rate, deduct from UZS
+        4. UZS paid → USD debt: convert UZS→USD at rate, deduct from USD
+        """
+        customer = self.get_customer_by_id(customer_id)
+        if not customer:
+            return False, "Mijoz topilmadi", Decimal("0")
+
+        if customer.current_debt is None:
+            customer.current_debt = Decimal("0")
+        if customer.current_debt_usd is None:
+            customer.current_debt_usd = Decimal("0")
+        if customer.advance_balance is None:
+            customer.advance_balance = Decimal("0")
+
+        rate = Decimal(str(exchange_rate or 12800))
+        currency = currency.upper()
+        target_debt = target_debt.upper()
+
+        # ── Scenario 1: UZS paid → UZS debt ──
+        if currency == "UZS" and target_debt == "UZS":
+            balance_before = customer.current_debt
+            if amount >= customer.current_debt:
+                excess = amount - customer.current_debt
+                customer.current_debt = Decimal("0")
+                if excess > 0:
+                    customer.advance_balance += excess
+                msg = f"So'm qarz to'liq to'landi"
+                if excess > 0:
+                    msg += f". {excess:,.0f} so'm avansga o'tkazildi"
+            else:
+                customer.current_debt -= amount
+                msg = f"To'lov qabul qilindi. Qoldiq so'm qarz: {customer.current_debt:,.0f} so'm"
+
+            self.db.add(CustomerDebt(
+                customer_id=customer_id, transaction_type="DEBT_PAYMENT",
+                amount=amount, balance_before=balance_before, balance_after=customer.current_debt,
+                description=description or f"So'm qarz to'lovi ({payment_type})",
+                created_by_id=created_by_id
+            ))
+
+        # ── Scenario 2: USD paid → USD debt ──
+        elif currency == "USD" and target_debt == "USD":
+            row2 = self.db.execute(
+                text("SELECT COALESCE(current_debt_usd, 0) FROM customers WHERE id = :id"),
+                {"id": customer_id}
+            ).fetchone()
+            balance_before = Decimal(str(row2[0])) if row2 else Decimal("0")
+            new_usd_s2 = max(Decimal("0"), balance_before - amount)
+            self.db.execute(
+                text("UPDATE customers SET current_debt_usd = :val WHERE id = :id"),
+                {"val": float(new_usd_s2), "id": customer_id}
+            )
+            customer.current_debt_usd = new_usd_s2  # sync ORM object
+            if amount >= balance_before:
+                msg = "Dollar qarz to'liq to'landi"
+            else:
+                msg = f"To'lov qabul qilindi. Qoldiq dollar qarz: ${new_usd_s2:,.2f}"
+
+            self.db.add(CustomerDebt(
+                customer_id=customer_id, transaction_type="DEBT_PAYMENT",
+                amount=amount, balance_before=balance_before, balance_after=new_usd_s2,
+                reference_type="adjustment_usd",
+                currency='USD',
+                description=description or f"Dollar qarz to'lovi (${amount:,.2f}, {payment_type})",
+                created_by_id=created_by_id
+            ))
+
+        # ── Scenario 3: USD paid → UZS debt (convert USD→UZS) ──
+        elif currency == "USD" and target_debt == "UZS":
+            amount_in_uzs = (amount * rate).quantize(Decimal("1"))
+            balance_before = customer.current_debt
+            if amount_in_uzs >= customer.current_debt:
+                excess_uzs = amount_in_uzs - customer.current_debt
+                customer.current_debt = Decimal("0")
+                if excess_uzs > 0:
+                    customer.advance_balance += excess_uzs
+                msg = f"Dollar to'lov qabul qilindi. ${amount:,.2f} × {rate:,.0f} = {amount_in_uzs:,.0f} so'm. So'm qarz to'liq to'landi"
+            else:
+                customer.current_debt -= amount_in_uzs
+                msg = f"Dollar to'lov qabul qilindi. ${amount:,.2f} × {rate:,.0f} = {amount_in_uzs:,.0f} so'm ayirildi. Qoldiq: {customer.current_debt:,.0f} so'm"
+
+            self.db.add(CustomerDebt(
+                customer_id=customer_id, transaction_type="DEBT_PAYMENT",
+                amount=amount_in_uzs, balance_before=balance_before, balance_after=customer.current_debt,
+                description=description or f"Dollar to'lov, so'm qarzdan ayirildi (${amount:,.2f} × {rate:,.0f} = {amount_in_uzs:,.0f} so'm, {payment_type})",
+                created_by_id=created_by_id
+            ))
+
+        # ── Scenario 4: UZS paid → USD debt (convert UZS→USD) ──
+        elif currency == "UZS" and target_debt == "USD":
+            amount_in_usd = (amount / rate).quantize(Decimal("0.01"))
+            row4 = self.db.execute(
+                text("SELECT COALESCE(current_debt_usd, 0) FROM customers WHERE id = :id"),
+                {"id": customer_id}
+            ).fetchone()
+            balance_before = Decimal(str(row4[0])) if row4 else Decimal("0")
+            new_usd_s4 = max(Decimal("0"), balance_before - amount_in_usd)
+            self.db.execute(
+                text("UPDATE customers SET current_debt_usd = :val WHERE id = :id"),
+                {"val": float(new_usd_s4), "id": customer_id}
+            )
+            customer.current_debt_usd = new_usd_s4
+            if amount_in_usd >= balance_before:
+                msg = f"So'm to'lov qabul qilindi. {amount:,.0f} ÷ {rate:,.0f} = ${amount_in_usd:,.2f}. Dollar qarz to'liq to'landi"
+            else:
+                msg = f"So'm to'lov qabul qilindi. {amount:,.0f} so'm = ${amount_in_usd:,.2f} ayirildi. Qoldiq: ${new_usd_s4:,.2f}"
+
+            self.db.add(CustomerDebt(
+                customer_id=customer_id, transaction_type="DEBT_PAYMENT",
+                amount=amount_in_usd, balance_before=balance_before, balance_after=new_usd_s4,
+                reference_type="adjustment_usd",
+                currency='USD',
+                description=description or f"So'm to'lov, dollar qarzdan ayirildi ({amount:,.0f} ÷ {rate:,.0f} = ${amount_in_usd:,.2f}, {payment_type})",
+                created_by_id=created_by_id
+            ))
+        else:
+            return False, "Noto'g'ri valyuta yoki qarz turi", Decimal("0")
+
+        self.db.add(customer)  # Force SQLAlchemy to persist changes
+        self.db.commit()
+        self.db.refresh(customer)
+        self._send_payment_notification(
+            customer, payment_type, float(amount), 0, float(customer.current_debt), created_by_id
+        )
+        return True, msg, Decimal("0")
 
     def add_advance(
         self,

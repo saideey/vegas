@@ -64,6 +64,7 @@ export interface Product {
   barcode?: string
   category_id?: number
   category_name?: string
+  category_color?: string
   base_uom_id: number
   base_uom_symbol: string
   base_uom_name?: string
@@ -112,6 +113,7 @@ export interface Customer {
   address?: string
   customer_type: 'REGULAR' | 'VIP' | 'WHOLESALE'
   current_debt: number
+  current_debt_usd: number
   advance_balance: number
   credit_limit: number
   total_purchases: number

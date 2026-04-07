@@ -12,7 +12,7 @@ import {
 } from '@/components/ui'
 import { customersService } from '@/services'
 import api from '@/services/api'
-import { formatMoney, formatPhone, formatInputNumber, cn, formatDateTashkent, formatTimeTashkent, formatDateTimeTashkent } from '@/lib/utils'
+import { formatMoney, formatNumber, formatPhone, formatInputNumber, cn, formatDateTashkent, formatTimeTashkent, formatDateTimeTashkent } from '@/lib/utils'
 import { useLanguage } from '@/contexts/LanguageContext'
 import { useAuthStore } from '@/stores/authStore'
 import type { Customer, Sale, User as UserType } from '@/types'
@@ -28,18 +28,23 @@ interface CustomerFormData {
   customer_type: 'REGULAR' | 'VIP' | 'WHOLESALE'
   credit_limit?: number
   manager_id?: number  // Biriktirilgan kassir
-  initial_debt_amount?: number  // Boshlang'ich qarz
+  initial_debt_amount?: number      // Boshlang'ich qarz (UZS)
+  initial_debt_amount_usd?: number  // Boshlang'ich qarz (USD)
   initial_debt_note?: string  // Qarz izohi
 }
 
 interface PaymentFormData {
   amount: number
+  currency: string
+  target_debt: string
+  exchange_rate?: number
   payment_type: string
   description?: string
 }
 
 interface AddDebtFormData {
   amount: number
+  currency: string
   description?: string
 }
 
@@ -56,6 +61,7 @@ interface SaleItem {
 interface DebtRecord {
   id: number
   transaction_type: string
+  currency?: string
   amount: number
   balance_before: number
   balance_after: number
@@ -91,8 +97,12 @@ export default function CustomersPage() {
   const [saleItems, setSaleItems] = useState<Record<number, SaleItem[]>>({})
   const [loadingSaleItems, setLoadingSaleItems] = useState<number | null>(null)
   const [paymentAmountDisplay, setPaymentAmountDisplay] = useState('')
+  const [paymentCurrency, setPaymentCurrency] = useState<'UZS'|'USD'>('UZS')
+  const [paymentTargetDebt, setPaymentTargetDebt] = useState<'UZS'|'USD'>('UZS')
   const [debtAmountDisplay, setDebtAmountDisplay] = useState('')
+  const [debtAmountUsdDisplay, setDebtAmountUsdDisplay] = useState('')
   const [addDebtAmountDisplay, setAddDebtAmountDisplay] = useState('')
+  const [addDebtCurrency, setAddDebtCurrency] = useState<'UZS'|'USD'>('UZS')
 
   const { register, handleSubmit, reset, setValue, formState: { errors } } = useForm<CustomerFormData>({
     defaultValues: { customer_type: 'REGULAR', credit_limit: 0 }
@@ -105,7 +115,7 @@ export default function CustomersPage() {
   const { register: registerAddDebt, handleSubmit: handleAddDebtSubmit, reset: resetAddDebt, setValue: setAddDebtValue } = useForm<AddDebtFormData>()
 
   // Fetch customers
-  const { data: customersData, isLoading } = useQuery({
+  const { data: customersRaw, isLoading } = useQuery({
     queryKey: ['customers', searchQuery, filterType, filterSellerId, showDebtorsOnly, filterCategoryId, page],
     queryFn: () => customersService.getCustomers({
       q: searchQuery || undefined,
@@ -117,6 +127,27 @@ export default function CustomersPage() {
       per_page: 20,
     }),
   })
+
+  // Fetch fresh USD debts for listed customers (bypass ORM cache)
+  const { data: usdDebtsData } = useQuery({
+    queryKey: ['customers-usd-debts', customersRaw?.data?.map((c: Customer) => c.id)],
+    enabled: !!customersRaw?.data?.length,
+    queryFn: async () => {
+      const ids = customersRaw!.data!.map((c: Customer) => c.id)
+      const res = await api.get('/customers/usd-debts', { params: { ids: ids.join(',') } })
+      return res.data as Record<number, number>
+    },
+    staleTime: 0,
+  })
+
+  // Merge USD debts into customers list
+  const customersData = customersRaw ? {
+    ...customersRaw,
+    data: customersRaw.data?.map((c: Customer) => ({
+      ...c,
+      current_debt_usd: usdDebtsData ? (usdDebtsData[c.id] ?? c.current_debt_usd ?? 0) : c.current_debt_usd ?? 0
+    }))
+  } : customersRaw
 
   // Fetch sellers (users who can be assigned to customers)
   const { data: sellersData } = useQuery({
@@ -174,6 +205,17 @@ export default function CustomersPage() {
       toast.success(catId ? "Kategoriya biriktirildi" : "Kategoriya olib tashlandi")
     } catch (e: any) { toast.error(e?.response?.data?.detail || "Xato") }
   }
+
+  // Fetch USD exchange rate
+  const { data: exchangeRateData } = useQuery({
+    queryKey: ['exchange-rate'],
+    queryFn: async () => {
+      const res = await api.get('/settings/exchange-rate')
+      return res.data
+    },
+    staleTime: 5 * 60 * 1000,
+  })
+  const usdRate = exchangeRateData?.usd_rate || 12800
 
   // Fetch debtors summary
   const { data: debtorsData } = useQuery({
@@ -240,7 +282,7 @@ export default function CustomersPage() {
       // If data not available, fetch it
       if (salesData.length === 0) {
         try {
-          const res = await api.get(`/customers/${selectedCustomer.id}/sales`)
+          const res = await api.get(`/sales?customer_id=${selectedCustomer.id}&per_page=200`)
           salesData = res.data?.data || []
         } catch (e) {
           console.log('Sales fetch failed', e)
@@ -344,6 +386,9 @@ export default function CustomersPage() {
       const totalItemsCount = salesWithItems.reduce((sum: number, s: any) => sum + (s.items?.length || 0), 0)
 
       // Customer info rows
+      const debtUzsForInfo = Number(selectedCustomer.current_debt || 0)
+      const debtUsdForInfo = Number(selectedCustomer.current_debt_usd || 0)
+
       const customerInfo = [
         ['Mijoz ismi:', selectedCustomer.name, '', '', '', 'Jami xaridlar:', `${totalSalesCount} ta`],
         ['Telefon:', selectedCustomer.phone, '', '', '', 'Jami summa:', formatMoney(totalAmount)],
@@ -351,38 +396,85 @@ export default function CustomersPage() {
         ['Kompaniya:', selectedCustomer.company_name || '-', '', '', '', 'Qarz (sotuvlardan):', formatMoney(totalDebtFromSales)],
         ['Manzil:', selectedCustomer.address || '-', '', '', '', 'To\'lovlar (alohida):', formatMoney(totalPayments)],
         ['Mijoz turi:', selectedCustomer.customer_type === 'VIP' ? '⭐ VIP Mijoz' : 'Oddiy mijoz', '', '', '', 'Sotib olingan tovarlar:', `${totalItemsCount} ta`],
+        ['', '', '', '', '', 'Joriy qarz (so\'m):', debtUzsForInfo > 0 ? formatMoney(debtUzsForInfo) : '0 so\'m'],
+        ['', '', '', '', '', 'Joriy qarz ($):', debtUsdForInfo > 0 ? `$${debtUsdForInfo.toLocaleString('ru-RU', {minimumFractionDigits:2,maximumFractionDigits:2})}` : '$0.00'],
+        ['', '', '', '', '', 'Avans balansi:', formatMoney(selectedCustomer.advance_balance)],
       ]
 
-      customerInfo.forEach((row) => {
+      customerInfo.forEach((row, idx) => {
         const r = ws.addRow(row)
         r.getCell(1).font = { bold: true, color: { argb: 'FF' + colors.subHeader } }
         r.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + colors.lightBlue } }
         r.getCell(2).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + colors.white } }
-        r.getCell(6).font = { bold: true, color: { argb: 'FF' + colors.success } }
-        r.getCell(6).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + colors.lightGreen } }
-        r.getCell(7).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + colors.white } }
-        r.getCell(7).alignment = { horizontal: 'right' }
+        // Color code debt rows
+        if (idx === 6) { // UZS debt row
+          r.getCell(6).font = { bold: true, color: { argb: 'FF' + (debtUzsForInfo > 0 ? colors.danger : colors.success) } }
+          r.getCell(6).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + colors.lightBlue } }
+          r.getCell(7).font = { bold: true, color: { argb: 'FF' + (debtUzsForInfo > 0 ? colors.danger : colors.success) } }
+          r.getCell(7).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + (debtUzsForInfo > 0 ? colors.lightRed : colors.lightGreen) } }
+        } else if (idx === 7) { // USD debt row
+          r.getCell(6).font = { bold: true, color: { argb: 'FF1E40AF' } }
+          r.getCell(6).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDBEAFE' } }
+          r.getCell(7).font = { bold: true, color: { argb: 'FF' + (debtUsdForInfo > 0 ? '1E40AF' : colors.success) } }
+          r.getCell(7).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + (debtUsdForInfo > 0 ? 'DBEAFE' : colors.lightGreen) } }
+        } else if (idx === 8) { // Advance row
+          r.getCell(6).font = { bold: true, color: { argb: 'FF' + colors.success } }
+          r.getCell(6).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + colors.lightGreen } }
+          r.getCell(7).font = { bold: true, color: { argb: 'FF' + colors.success } }
+          r.getCell(7).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + colors.lightGreen } }
+        } else {
+          r.getCell(6).font = { bold: true, color: { argb: 'FF' + colors.success } }
+          r.getCell(6).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + colors.lightGreen } }
+          r.getCell(7).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + colors.white } }
+          r.getCell(7).alignment = { horizontal: 'right' }
+        }
         currentRow++
       })
 
-      // Current debt highlight
+      // Current debt highlight - UZS and USD separately
       currentRow++
+      const debtUzs = Number(selectedCustomer.current_debt || 0)
+      const debtUsd = Number(selectedCustomer.current_debt_usd || 0)
+      const hasAnyDebt = debtUzs > 0 || debtUsd > 0
+
+      // UZS debt row
       ws.mergeCells(`A${currentRow}:C${currentRow}`)
       const debtLabelCell = ws.getCell(`A${currentRow}`)
-      debtLabelCell.value = '💰 JORIY QARZ:'
-      debtLabelCell.font = { bold: true, size: 14, color: { argb: 'FF' + colors.white } }
-      debtLabelCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + (selectedCustomer.current_debt > 0 ? colors.danger : colors.success) } }
+      debtLabelCell.value = '💰 SO\'M QARZ:'
+      debtLabelCell.font = { bold: true, size: 13, color: { argb: 'FF' + colors.white } }
+      debtLabelCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + (debtUzs > 0 ? colors.danger : colors.success) } }
       debtLabelCell.alignment = { horizontal: 'center', vertical: 'middle' }
 
       ws.mergeCells(`D${currentRow}:F${currentRow}`)
       const debtValueCell = ws.getCell(`D${currentRow}`)
-      debtValueCell.value = formatMoney(selectedCustomer.current_debt)
-      debtValueCell.font = { bold: true, size: 14, color: { argb: 'FF' + (selectedCustomer.current_debt > 0 ? colors.danger : colors.success) } }
-      debtValueCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + (selectedCustomer.current_debt > 0 ? colors.lightRed : colors.lightGreen) } }
+      debtValueCell.value = formatMoney(debtUzs)
+      debtValueCell.font = { bold: true, size: 13, color: { argb: 'FF' + (debtUzs > 0 ? colors.danger : colors.success) } }
+      debtValueCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + (debtUzs > 0 ? colors.lightRed : colors.lightGreen) } }
       debtValueCell.alignment = { horizontal: 'center', vertical: 'middle' }
 
-      ws.mergeCells(`G${currentRow}:K${currentRow}`)
-      const dateCell = ws.getCell(`G${currentRow}`)
+      // USD debt row
+      if (debtUsd > 0) {
+        ws.mergeCells(`G${currentRow}:H${currentRow}`)
+        const debtUsdLabelCell = ws.getCell(`G${currentRow}`)
+        debtUsdLabelCell.value = '💵 DOLLAR QARZ:'
+        debtUsdLabelCell.font = { bold: true, size: 13, color: { argb: 'FF' + colors.white } }
+        debtUsdLabelCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E40AF' } }
+        debtUsdLabelCell.alignment = { horizontal: 'center', vertical: 'middle' }
+
+        ws.mergeCells(`I${currentRow}:K${currentRow}`)
+        const debtUsdValueCell = ws.getCell(`I${currentRow}`)
+        debtUsdValueCell.value = `$${debtUsd.toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+        debtUsdValueCell.font = { bold: true, size: 13, color: { argb: 'FF1E40AF' } }
+        debtUsdValueCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDBEAFE' } }
+        debtUsdValueCell.alignment = { horizontal: 'center', vertical: 'middle' }
+      } else {
+        ws.mergeCells(`G${currentRow}:K${currentRow}`)
+      }
+
+      // Date shown on next row
+      currentRow++
+      ws.mergeCells(`A${currentRow}:K${currentRow}`)
+      const dateCell = ws.getCell(`A${currentRow}`)
       dateCell.value = `📅 Hisobot sanasi: ${formatDateTimeTashkent(new Date())}`
       dateCell.font = { italic: true, color: { argb: 'FF' + colors.gray } }
       dateCell.alignment = { horizontal: 'right' }
@@ -588,82 +680,128 @@ export default function CustomersPage() {
       currentRow++
 
       // ═══════════════════════════════════════════════════════════════
-      // SECTION 5: DEBT & PAYMENTS HISTORY
+      // SECTION 5: DEBT & PAYMENTS HISTORY — UZS va USD alohida
       // ═══════════════════════════════════════════════════════════════
-      ws.mergeCells(`A${currentRow}:K${currentRow}`)
-      const debtTitle = ws.getCell(`A${currentRow}`)
-      debtTitle.value = `💳 QARZ VA TO'LOVLAR TARIXI (${debtData.length} ta yozuv)`
-      debtTitle.font = { bold: true, size: 12, color: { argb: 'FF' + colors.white } }
-      debtTitle.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + colors.danger } }
-      debtTitle.alignment = { horizontal: 'center' }
-      ws.getRow(currentRow).height = 22
-      currentRow++
 
-      // Debt table header
-      const debtHeaders = ['№', 'Sana', 'Vaqt', 'Turi', 'Summa', 'Qarz oldin', 'Qarz keyin', 'O\'zgarish', '', 'Izoh', '']
-      const debtHeaderRow = ws.addRow(debtHeaders)
-      debtHeaderRow.eachCell((cell, colNumber) => {
-        if (colNumber <= 8 || colNumber === 10) {
-          cell.font = { bold: true, color: { argb: 'FF' + colors.white } }
-          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFC00000' } }
-          cell.alignment = { horizontal: 'center', vertical: 'middle' }
-          cell.border = thinBorder
+      // Ajratish: UZS va USD yozuvlar
+      const uzsRecords = debtData.filter((r: any) => !r.currency || r.currency === 'UZS')
+      const usdRecords = debtData.filter((r: any) => r.currency === 'USD')
+
+      // Helper: debt section renderer
+      const renderDebtSection = (
+        records: any[],
+        titleText: string,
+        titleColor: string,
+        headerColor: string,
+        isUsd: boolean
+      ) => {
+        ws.mergeCells(`A${currentRow}:K${currentRow}`)
+        const sTitle = ws.getCell(`A${currentRow}`)
+        sTitle.value = titleText
+        sTitle.font = { bold: true, size: 12, color: { argb: 'FFFFFFFF' } }
+        sTitle.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: titleColor } }
+        sTitle.alignment = { horizontal: 'center' }
+        ws.getRow(currentRow).height = 22
+        currentRow++
+
+        const currency = isUsd ? '$' : "so'm"
+        const hdr = ws.addRow(['№', 'Sana', 'Vaqt', 'Turi', `Miqdor (${currency})`, `Qarz oldin (${currency})`, `Qarz keyin (${currency})`, "O'zgarish", '', 'Izoh', ''])
+        hdr.eachCell((cell, col) => {
+          if (col <= 8 || col === 10) {
+            cell.font = { bold: true, color: { argb: 'FFFFFFFF' } }
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: headerColor } }
+            cell.alignment = { horizontal: 'center', vertical: 'middle' }
+            cell.border = thinBorder
+          }
+        })
+        ws.getRow(currentRow).height = 20
+        currentRow++
+
+        if (records.length === 0) {
+          const noRow = ws.addRow(['', '', '', "Ma'lumot yo'q", '', '', '', '', '', '', ''])
+          noRow.getCell(4).font = { italic: true, color: { argb: 'FF' + colors.gray } }
+          currentRow++
+          return
         }
-      })
-      ws.getRow(currentRow).height = 20
-      currentRow++
 
-      // Debt data
-      if (debtData.length > 0) {
-        debtData.forEach((record: any, index: number) => {
+        let totalDebt = 0, totalPayment = 0
+        records.forEach((record: any, index: number) => {
           const isPayment = record.transaction_type === 'PAYMENT' || record.transaction_type === 'DEBT_PAYMENT'
-          const typeLabel = isPayment ? '💰 To\'lov' : '📦 Xarid'
+          const amt = Math.abs(Number(record.amount || 0))
+          if (isPayment) totalPayment += amt; else totalDebt += amt
           const change = Number(record.balance_after || 0) - Number(record.balance_before || 0)
 
-          const debtRowData = [
+          let typeLabel = ''
+          if (isPayment) typeLabel = "💰 To'lov"
+          else if (record.transaction_type === 'DEBT_INCREASE') typeLabel = "📈 Qarz qo'shildi"
+          else if (record.reference_type === 'adjustment' || record.reference_type === 'adjustment_usd') typeLabel = "📝 Boshlang'ich qarz"
+          else typeLabel = "📦 Xarid"
+
+          const fmt = isUsd
+            ? (v: number) => `$${v.toLocaleString('ru-RU', {minimumFractionDigits:2, maximumFractionDigits:2})}`
+            : (v: number) => v
+
+          const row = ws.addRow([
             index + 1,
             formatDateTashkent(record.created_at),
             formatTimeTashkent(record.created_at),
             typeLabel,
-            Math.abs(Number(record.amount || 0)),
-            Number(record.balance_before || 0),
-            Number(record.balance_after || 0),
-            change,
+            isUsd ? `$${amt.toLocaleString('ru-RU',{minimumFractionDigits:2,maximumFractionDigits:2})}` : amt,
+            isUsd ? `$${Number(record.balance_before||0).toLocaleString('ru-RU',{minimumFractionDigits:2,maximumFractionDigits:2})}` : Number(record.balance_before||0),
+            isUsd ? `$${Number(record.balance_after||0).toLocaleString('ru-RU',{minimumFractionDigits:2,maximumFractionDigits:2})}` : Number(record.balance_after||0),
+            isUsd ? (change >= 0 ? `+$${Math.abs(change).toLocaleString('ru-RU',{minimumFractionDigits:2,maximumFractionDigits:2})}` : `-$${Math.abs(change).toLocaleString('ru-RU',{minimumFractionDigits:2,maximumFractionDigits:2})}`) : change,
             '',
             record.description || '-',
             ''
-          ]
-
-          const debtRow = ws.addRow(debtRowData)
-          debtRow.eachCell((cell, colNumber) => {
-            if (colNumber <= 8 || colNumber === 10) {
+          ])
+          row.eachCell((cell, col) => {
+            if (col <= 8 || col === 10) {
               cell.border = thinBorder
-              cell.alignment = { horizontal: colNumber <= 4 || colNumber === 10 ? 'left' : 'right', vertical: 'middle' }
-
-              // Alternate colors based on type
-              if (isPayment) {
-                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + colors.lightGreen } }
-              } else {
-                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + colors.lightRed } }
-              }
-
-              if (colNumber >= 5 && colNumber <= 8) {
-                cell.numFmt = '#,##0'
-              }
-
-              // Color change column
-              if (colNumber === 8) {
-                cell.font = { bold: true, color: { argb: 'FF' + (change < 0 ? colors.success : colors.danger) } }
-              }
+              cell.alignment = { horizontal: col <= 4 || col === 10 ? 'left' : 'right', vertical: 'middle' }
+              cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: isPayment ? 'FFE2EFDA' : 'FFFCE4D6' } }
+              if (!isUsd && col >= 5 && col <= 8) cell.numFmt = '#,##0'
+              if (col === 8) cell.font = { bold: true, color: { argb: change < 0 ? 'FF375623' : 'FFC00000' } }
             }
           })
           currentRow++
         })
-      } else {
-        const noDebtRow = ws.addRow(['', '', '', 'Ma\'lumot yo\'q', '', '', '', '', '', '', ''])
-        noDebtRow.getCell(4).font = { italic: true, color: { argb: 'FF' + colors.gray } }
-        currentRow++
+
+        // Totals row
+        const totColor = isUsd ? 'FF1E40AF' : 'FFC00000'
+        const totRow = ws.addRow([
+          '', '', '', 'JAMI:',
+          isUsd
+            ? `Qarz: $${totalDebt.toLocaleString('ru-RU',{minimumFractionDigits:2,maximumFractionDigits:2})}  |  To'lov: $${totalPayment.toLocaleString('ru-RU',{minimumFractionDigits:2,maximumFractionDigits:2})}`
+            : `Qarz: ${totalDebt.toLocaleString("ru-RU")} so\'m  |  To\'lov: ${totalPayment.toLocaleString("ru-RU")} so\'m`,
+          '', '', '', '', '', ''
+        ])
+        totRow.eachCell((cell, col) => {
+          if (col === 4 || col === 5) {
+            cell.font = { bold: true, color: { argb: totColor } }
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFF2CC' } }
+            cell.border = thinBorder
+          }
+        })
+        currentRow += 2
       }
+
+      // ── So'm operatsiyalari ──
+      renderDebtSection(
+        uzsRecords,
+        `💰 SO'M OPERATSIYALARI (${uzsRecords.length} ta yozuv)`,
+        'FFBF0000',
+        'FFC00000',
+        false
+      )
+
+      // ── Dollar operatsiyalari ──
+      renderDebtSection(
+        usdRecords,
+        `💵 DOLLAR OPERATSIYALARI (${usdRecords.length} ta yozuv)`,
+        'FF1E40AF',
+        'FF2E75B6',
+        true
+      )
 
       currentRow++
 
@@ -731,6 +869,10 @@ export default function CustomersPage() {
       if ('manager_id' in cleanData && (!cleanData.manager_id || isNaN(cleanData.manager_id))) {
         delete cleanData.manager_id
       }
+      // Always send exchange_rate for USD debt conversion
+      if (cleanData.initial_debt_amount_usd) {
+        cleanData.initial_debt_exchange_rate = usdRate
+      }
       const response = await api.post('/customers', cleanData)
       return response.data
     },
@@ -739,6 +881,7 @@ export default function CustomersPage() {
       queryClient.invalidateQueries({ queryKey: ['customers'] })
       setShowAddDialog(false)
       setDebtAmountDisplay('')
+      setDebtAmountUsdDisplay('')
       reset()
     },
     onError: (error: any) => {
@@ -830,16 +973,26 @@ export default function CustomersPage() {
   const payDebt = useMutation({
     mutationFn: async (data: PaymentFormData) => {
       if (!selectedCustomer) return
-      const response = await api.post(`/customers/${selectedCustomer.id}/pay-debt`, data)
+      const response = await api.post(`/customers/${selectedCustomer.id}/pay-debt`, {
+        ...data,
+        currency: paymentCurrency,
+        target_debt: paymentTargetDebt,
+        exchange_rate: usdRate
+      })
       return response.data
     },
     onSuccess: (data) => {
-      toast.success(`To'lov qabul qilindi! Qolgan qarz: ${formatMoney(data.current_debt)}`)
+      const debtMsg = paymentCurrency === 'USD'
+        ? `Qolgan dollar qarz: $${Number(data.current_debt_usd || 0).toLocaleString('ru-RU', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`
+        : `Qolgan qarz: ${formatMoney(data.current_debt)}`
+      toast.success(`To'lov qabul qilindi! ${debtMsg}`)
       queryClient.invalidateQueries({ queryKey: ['customers'] })
       queryClient.invalidateQueries({ queryKey: ['debtors-summary'] })
       queryClient.invalidateQueries({ queryKey: ['customer-payments'] })
       setShowPaymentDialog(false)
       setPaymentAmountDisplay('')
+      setPaymentCurrency('UZS')
+      setPaymentTargetDebt('UZS')
       resetPayment()
     },
     onError: (error: any) => {
@@ -866,16 +1019,23 @@ export default function CustomersPage() {
   const addDebtMutation = useMutation({
     mutationFn: async (data: AddDebtFormData) => {
       if (!selectedCustomer) return
-      const response = await api.post(`/customers/${selectedCustomer.id}/add-debt`, data)
+      const response = await api.post(`/customers/${selectedCustomer.id}/add-debt`, {
+        ...data,
+        currency: addDebtCurrency
+      })
       return response.data
     },
     onSuccess: (data) => {
-      toast.success(`Qarz qo'shildi! Joriy qarz: ${formatMoney(data.current_debt)}`)
+      const msg = addDebtCurrency === 'USD'
+        ? `Dollar qarz qo'shildi! Joriy: $${Number(data.current_debt_usd||0).toLocaleString('ru-RU',{minimumFractionDigits:2,maximumFractionDigits:2})}`
+        : `Qarz qo'shildi! Joriy: ${formatMoney(data.current_debt)}`
+      toast.success(msg)
       queryClient.invalidateQueries({ queryKey: ['customers'] })
       queryClient.invalidateQueries({ queryKey: ['debtors-summary'] })
       queryClient.invalidateQueries({ queryKey: ['customer-debt-history'] })
       setShowAddDebtDialog(false)
       setAddDebtAmountDisplay('')
+      setAddDebtCurrency('UZS')
       resetAddDebt()
     },
     onError: (error: any) => {
@@ -886,34 +1046,60 @@ export default function CustomersPage() {
 
   const onAddDebtSubmit = (data: AddDebtFormData) => addDebtMutation.mutate(data)
 
-  const handleAddDebtClick = (customer: Customer) => {
-    setSelectedCustomer(customer)
+  // Helper: fetch fresh customer data with correct current_debt_usd
+  const fetchFreshCustomer = async (customer: Customer): Promise<Customer> => {
+    try {
+      const res = await api.get(`/customers/${customer.id}`)
+      return { ...customer, ...res.data }
+    } catch {
+      return customer
+    }
+  }
+
+  const handleAddDebtClick = async (customer: Customer) => {
+    const fresh = await fetchFreshCustomer(customer)
+    setSelectedCustomer(fresh)
     setAddDebtAmountDisplay('')
     resetAddDebt()
     setShowAddDebtDialog(true)
   }
 
-  const handlePayClick = (customer: Customer) => {
-    setSelectedCustomer(customer)
-    setPaymentValue('amount', customer.current_debt)
-    setPaymentAmountDisplay(formatInputNumber(customer.current_debt))
+  const handlePayClick = async (customer: Customer) => {
+    const fresh = await fetchFreshCustomer(customer)
+    setSelectedCustomer(fresh)
+    const hasUzs = Number(fresh.current_debt) > 0
+    const hasUsd = Number(fresh.current_debt_usd) > 0
+    if (!hasUzs && hasUsd) {
+      setPaymentCurrency('USD')
+      setPaymentTargetDebt('USD')
+      setPaymentAmountDisplay('')
+      setPaymentValue('amount', 0)
+    } else {
+      setPaymentCurrency('UZS')
+      setPaymentTargetDebt('UZS')
+      setPaymentAmountDisplay(formatInputNumber(Number(fresh.current_debt)))
+      setPaymentValue('amount', Number(fresh.current_debt))
+    }
     setShowPaymentDialog(true)
   }
 
-  const handleEditClick = (customer: Customer) => {
-    setEditingCustomer(customer)
-    setValue('name', customer.name)
-    setValue('phone', customer.phone)
-    setValue('phone_secondary', customer.phone_secondary || '')
-    setValue('telegram_id', customer.telegram_id || '')
-    setValue('company_name', customer.company_name || '')
-    setValue('email', customer.email || '')
-    setValue('address', customer.address || '')
-    setValue('customer_type', customer.customer_type)
-    setValue('credit_limit', customer.credit_limit || 0)
-    setValue('manager_id', customer.manager_id || '')
-    setValue('initial_debt_amount', customer.current_debt || 0)
-    setDebtAmountDisplay(customer.current_debt ? formatInputNumber(customer.current_debt) : '')
+  const handleEditClick = async (customer: Customer) => {
+    const fresh = await fetchFreshCustomer(customer)
+    setEditingCustomer(fresh)
+    setValue('name', fresh.name)
+    setValue('phone', fresh.phone)
+    setValue('phone_secondary', fresh.phone_secondary || '')
+    setValue('telegram_id', fresh.telegram_id || '')
+    setValue('company_name', fresh.company_name || '')
+    setValue('email', fresh.email || '')
+    setValue('address', fresh.address || '')
+    setValue('customer_type', fresh.customer_type)
+    setValue('credit_limit', fresh.credit_limit || 0)
+    setValue('manager_id', fresh.manager_id || '')
+    setValue('initial_debt_amount', fresh.current_debt || 0)
+    setDebtAmountDisplay(Number(fresh.current_debt) > 0 ? formatInputNumber(Number(fresh.current_debt)) : '')
+    setValue('initial_debt_amount_usd', Number(fresh.current_debt_usd) > 0 ? Number(fresh.current_debt_usd) : undefined)
+    setDebtAmountUsdDisplay(Number(fresh.current_debt_usd) > 0 ? String(Number(fresh.current_debt_usd)) : '')
     setValue('initial_debt_note', '')
     setShowAddDialog(true)
   }
@@ -923,9 +1109,15 @@ export default function CustomersPage() {
     setShowDeleteConfirm(true)
   }
 
-  const handleDetailClick = (customer: Customer) => {
+  const handleDetailClick = async (customer: Customer) => {
+    // Set immediately for fast UI, then fetch fresh data with current_debt_usd
     setSelectedCustomer(customer)
     setShowDetailDialog(true)
+    try {
+      const res = await api.get(`/customers/${customer.id}`)
+      const fresh = res.data
+      setSelectedCustomer(prev => prev?.id === customer.id ? { ...prev, ...fresh } : prev)
+    } catch (_) {}
   }
 
   const getTypeBadge = (type: string) => {
@@ -987,9 +1179,14 @@ export default function CustomersPage() {
             <div className="p-2 lg:p-3 bg-warning/10 rounded-xl">
               <Banknote className="w-4 h-4 lg:w-6 lg:h-6 text-warning" />
             </div>
-            <div className="text-center lg:text-left">
+            <div className="text-center lg:text-left min-w-0">
               <p className="text-xs lg:text-sm text-text-secondary">{t('totalDebt')}</p>
-              <p className="text-xs lg:text-pos-lg font-bold text-danger truncate">{formatMoney(debtorsData?.total_debt || 0)}</p>
+              <p className="text-xs lg:text-sm font-bold text-danger truncate">{formatMoney(debtorsData?.total_debt || 0)}</p>
+              {Number(debtorsData?.total_debt_usd || 0) > 0 && (
+                <p className="text-xs font-bold text-blue-600 truncate">
+                  ${Number(debtorsData?.total_debt_usd || 0).toLocaleString('ru-RU', {minimumFractionDigits:2, maximumFractionDigits:2})}
+                </p>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -1063,93 +1260,98 @@ export default function CustomersPage() {
         <div className="space-y-3">
           {customersData?.data?.map((customer: Customer) => (
             <Card key={customer.id} className="hover:shadow-md transition-shadow">
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between gap-4">
-                  <div className="flex items-center gap-4 flex-1">
-                    <div className="p-3 bg-primary/10 rounded-full">
-                      <User className="w-6 h-6 text-primary" />
-                    </div>
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <p className="font-semibold text-pos-base">{customer.name}</p>
-                        {getTypeBadge(customer.customer_type)}
-                        {(customer as any).category_name && (
-                          <span
-                            className="px-2 py-0.5 rounded-full text-xs font-medium text-white"
-                            style={{ backgroundColor: (customer as any).category_color || '#6366f1' }}
-                          >
-                            {(customer as any).category_name}
-                          </span>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-4 mt-1 text-sm text-text-secondary">
-                        <span className="flex items-center gap-1">
-                          <Phone className="w-4 h-4" />
-                          {formatPhone(customer.phone)}
+              <CardContent className="p-3">
+                {/* ── Top row: avatar + name + actions ── */}
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 bg-primary/10 rounded-full flex-shrink-0">
+                    <User className="w-5 h-5 text-primary" />
+                  </div>
+
+                  {/* Name + phone */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <p className="font-semibold text-sm">{customer.name}</p>
+                      {getTypeBadge(customer.customer_type)}
+                      {customer.category_name && (
+                        <span className="px-1.5 py-0.5 rounded-full text-xs font-medium text-white"
+                          style={{ backgroundColor: customer.category_color || '#6366f1' }}>
+                          {customer.category_name}
                         </span>
-                        {customer.company_name && (
-                          <span className="flex items-center gap-1">
-                            <Building className="w-4 h-4" />
-                            {customer.company_name}
-                          </span>
-                        )}
-                      </div>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-3 mt-0.5 text-xs text-text-secondary">
+                      <span className="flex items-center gap-1">
+                        <Phone className="w-3 h-3" />{formatPhone(customer.phone)}
+                      </span>
+                      {customer.company_name && (
+                        <span className="flex items-center gap-1 truncate">
+                          <Building className="w-3 h-3 flex-shrink-0" />{customer.company_name}
+                        </span>
+                      )}
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-6">
-                    <div className="text-center hidden md:block">
-                      <p className="text-xs text-text-secondary">{t('totalPurchases')}</p>
-                      <p className="font-semibold text-primary">{formatMoney(customer.total_purchases)}</p>
-                    </div>
-
-                    {customer.current_debt > 0 && (
-                      <div className="text-center">
-                        <p className="text-xs text-text-secondary">{t('debt')}</p>
-                        <p className="font-bold text-danger">{formatMoney(customer.current_debt)}</p>
-                      </div>
+                  {/* Action buttons — always visible, compact */}
+                  <div className="flex items-center gap-1 flex-shrink-0">
+                    {(customer.current_debt > 0 || Number(customer.current_debt_usd) > 0) && (
+                      <button onClick={() => handlePayClick(customer)}
+                        className="flex items-center gap-1 bg-success text-white rounded-lg px-2 py-1.5 text-xs font-semibold hover:bg-success/90 active:scale-95 transition-all">
+                        <Banknote className="w-3.5 h-3.5" />
+                        <span className="hidden sm:inline">To'lov</span>
+                      </button>
                     )}
-
-                    {customer.advance_balance > 0 && (
-                      <div className="text-center">
-                        <p className="text-xs text-text-secondary">{t('advanceBalance')}</p>
-                        <p className="font-bold text-success">{formatMoney(customer.advance_balance)}</p>
-                      </div>
-                    )}
-
-                    <div className="flex gap-2">
-                      {customer.current_debt > 0 && (
-                        <Button variant="success" size="sm" onClick={() => handlePayClick(customer)}>
-                          <Banknote className="w-4 h-4 mr-1" />
-                          {t('payment')}
-                        </Button>
-                      )}
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleAddDebtClick(customer)}
-                        className="text-orange-600 border-orange-300 hover:bg-orange-50"
-                        title="Qarz qo'shish"
-                      >
-                        <Plus className="w-4 h-4" />
-                      </Button>
-                      <Button variant="outline" size="sm" onClick={() => handleEditClick(customer)}>
-                        <Edit className="w-4 h-4" />
-                      </Button>
-                      <Button variant="outline" size="sm" onClick={() => handleDetailClick(customer)}>
-                        <Eye className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleDeleteClick(customer)}
-                        className="text-danger hover:bg-danger hover:text-white"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </div>
+                    <button onClick={() => handleAddDebtClick(customer)}
+                      className="p-1.5 rounded-lg border border-orange-300 text-orange-500 hover:bg-orange-50 active:scale-95 transition-all" title="Qarz qo'shish">
+                      <Plus className="w-3.5 h-3.5" />
+                    </button>
+                    <button onClick={() => handleEditClick(customer)}
+                      className="p-1.5 rounded-lg border border-border text-text-secondary hover:bg-gray-50 active:scale-95 transition-all">
+                      <Edit className="w-3.5 h-3.5" />
+                    </button>
+                    <button onClick={() => handleDetailClick(customer)}
+                      className="p-1.5 rounded-lg border border-border text-text-secondary hover:bg-gray-50 active:scale-95 transition-all">
+                      <Eye className="w-3.5 h-3.5" />
+                    </button>
+                    <button onClick={() => handleDeleteClick(customer)}
+                      className="p-1.5 rounded-lg border border-border text-danger hover:bg-danger hover:text-white active:scale-95 transition-all">
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
                   </div>
                 </div>
+
+                {/* ── Bottom row: stats chips ── */}
+                {(customer.current_debt > 0 || Number(customer.current_debt_usd) > 0 || customer.total_purchases > 0) && (
+                  <div className="flex items-center gap-2 mt-2.5 flex-wrap">
+                    {customer.total_purchases > 0 && (
+                      <div className="flex items-center gap-1 bg-blue-50 rounded-lg px-2 py-1">
+                        <span className="text-xs text-blue-500">Xarid:</span>
+                        <span className="text-xs font-semibold text-blue-700 whitespace-nowrap">{formatMoney(customer.total_purchases)}</span>
+                      </div>
+                    )}
+                    {customer.current_debt > 0 && (
+                      <div className="flex items-center gap-1 bg-red-50 rounded-lg px-2 py-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-green-500 flex-shrink-0"></span>
+                        <span className="text-xs text-gray-500">Qarz:</span>
+                        <span className="text-xs font-bold text-danger whitespace-nowrap">{formatMoney(customer.current_debt)}</span>
+                      </div>
+                    )}
+                    {Number(customer.current_debt_usd) > 0 && (
+                      <div className="flex items-center gap-1 bg-blue-50 border border-blue-100 rounded-lg px-2 py-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-blue-500 flex-shrink-0"></span>
+                        <span className="text-xs text-gray-500">Qarz:</span>
+                        <span className="text-xs font-bold text-blue-600 whitespace-nowrap">
+                          ${Number(customer.current_debt_usd).toLocaleString('ru-RU',{minimumFractionDigits:2,maximumFractionDigits:2})}
+                        </span>
+                      </div>
+                    )}
+                    {customer.advance_balance > 0 && (
+                      <div className="flex items-center gap-1 bg-green-50 rounded-lg px-2 py-1">
+                        <span className="text-xs text-gray-500">Avans:</span>
+                        <span className="text-xs font-bold text-success whitespace-nowrap">{formatMoney(customer.advance_balance)}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
               </CardContent>
             </Card>
           ))}
@@ -1181,12 +1383,17 @@ export default function CustomersPage() {
           reset()
         }
       }}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>{editingCustomer ? t('editCustomerTitle') : t('addCustomerTitle')}</DialogTitle>
-            <DialogDescription>{t('enterCustomerDetails')}</DialogDescription>
-          </DialogHeader>
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        <DialogContent className="max-w-lg max-h-[92vh] flex flex-col p-0 gap-0">
+          {/* Fixed header */}
+          <div className="px-5 pt-5 pb-3 border-b border-border flex-shrink-0">
+            <DialogHeader>
+              <DialogTitle>{editingCustomer ? t('editCustomerTitle') : t('addCustomerTitle')}</DialogTitle>
+              <DialogDescription>{t('enterCustomerDetails')}</DialogDescription>
+            </DialogHeader>
+          </div>
+          <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col flex-1 min-h-0 overflow-hidden">
+            {/* Scrollable body */}
+            <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
             <div className="space-y-2">
               <label className="font-medium">{t('customerName')} *</label>
               <Input {...register('name', { required: t('nameRequired') })} placeholder={t('fullName')} />
@@ -1259,56 +1466,154 @@ export default function CustomersPage() {
                   ? "bg-red-50 border-red-200"
                   : "bg-orange-50 border-orange-200"
               )}>
+                {/* Header */}
                 <label className={cn(
                   "font-medium flex items-center gap-2",
                   editingCustomer ? "text-red-700" : "text-orange-700"
                 )}>
                   <Banknote className="w-4 h-4" />
-                  {editingCustomer
-                    ? `Qarz summasi (hozirgi: ${formatMoney(editingCustomer.current_debt || 0)})`
-                    : "Boshlang'ich qarz (ixtiyoriy)"
-                  }
+                  {editingCustomer ? (
+                    <span>
+                      Qarz —{' '}
+                      {Number(editingCustomer.current_debt || 0) > 0 && (
+                        <span className="text-red-600">{formatMoney(editingCustomer.current_debt)}</span>
+                      )}
+                      {Number(editingCustomer.current_debt || 0) > 0 && Number(editingCustomer.current_debt_usd || 0) > 0 && ' · '}
+                      {Number(editingCustomer.current_debt_usd || 0) > 0 && (
+                        <span className="text-blue-600">${Number(editingCustomer.current_debt_usd).toLocaleString('ru-RU', {minimumFractionDigits:2,maximumFractionDigits:2})}</span>
+                      )}
+                      {Number(editingCustomer.current_debt || 0) === 0 && Number(editingCustomer.current_debt_usd || 0) === 0 && (
+                        <span className="text-green-600">qarz yo'q</span>
+                      )}
+                    </span>
+                  ) : "Boshlang'ich qarz (ixtiyoriy)"}
                 </label>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1">
-                    <label className="text-sm text-gray-600">
-                      {editingCustomer ? "Yangi qarz summasi (so'm)" : "Qarz summasi (so'm)"}
-                    </label>
-                    <Input
-                      type="text"
-                      inputMode="numeric"
-                      value={debtAmountDisplay}
-                      onChange={(e) => {
-                        const raw = e.target.value.replace(/\s/g, '')
-                        const num = parseFloat(raw) || 0
-                        setDebtAmountDisplay(num > 0 ? formatInputNumber(num) : raw)
-                        setValue('initial_debt_amount', num || undefined)
-                      }}
-                      onFocus={(e) => e.target.select()}
-                      placeholder="0"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-sm text-gray-600">
-                      {editingCustomer ? "O'zgartirish sababi" : "Qarz izohi"}
-                    </label>
-                    <Input
-                      {...register('initial_debt_note')}
-                      placeholder={editingCustomer ? "Masalan: Direktor tomonidan tuzatildi" : "Masalan: Eski do'kondan qarz"}
-                    />
-                  </div>
+
+                {/* Kurs ko'rsatish */}
+                <div className="flex items-center gap-2 text-xs text-gray-500 bg-white rounded-lg px-3 py-1.5 border border-gray-200">
+                  <span>Joriy kurs:</span>
+                  <span className="font-semibold text-primary">1$ = {formatNumber(usdRate)} so'm</span>
                 </div>
+
+                {/* UZS qarz */}
+                <div className="space-y-1">
+                  <label className="text-sm font-medium text-gray-700 flex items-center gap-1.5">
+                    <span className="px-1.5 py-0.5 bg-green-100 text-green-700 rounded text-xs font-bold">UZS</span>
+                    So'm da qarz
+                  </label>
+                  <Input
+                    type="text"
+                    inputMode="numeric"
+                    value={debtAmountDisplay}
+                    onChange={(e) => {
+                      const raw = e.target.value.replace(/\s/g, '')
+                      const num = parseFloat(raw) || 0
+                      setDebtAmountDisplay(num > 0 ? formatInputNumber(num) : raw)
+                      setValue('initial_debt_amount', num || undefined)
+                    }}
+                    onFocus={(e) => e.target.select()}
+                    placeholder="0"
+                    icon={<span className="text-xs font-bold text-green-600">so'm</span>}
+                  />
+                  {debtAmountDisplay && parseFloat(debtAmountDisplay.replace(/\s/g, '')) > 0 && (
+                    <p className="text-xs text-green-700 font-medium pl-1">
+                      ≈ ${formatNumber(parseFloat(debtAmountDisplay.replace(/\s/g, '')) / usdRate, 2)}
+                    </p>
+                  )}
+                </div>
+
+                {/* USD qarz */}
+                <div className="space-y-1">
+                  <label className="text-sm font-medium text-gray-700 flex items-center gap-1.5">
+                    <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded text-xs font-bold">USD</span>
+                    Dollar da qarz
+                  </label>
+                  <Input
+                    type="text"
+                    inputMode="decimal"
+                    value={debtAmountUsdDisplay}
+                    onChange={(e) => {
+                      const raw = e.target.value.replace(/[^\d.]/g, '')
+                      setDebtAmountUsdDisplay(raw)
+                      const num = parseFloat(raw) || 0
+                      setValue('initial_debt_amount_usd', num || undefined)
+                    }}
+                    onFocus={(e) => e.target.select()}
+                    placeholder="0.00"
+                    icon={<span className="text-xs font-bold text-blue-600">$</span>}
+                  />
+                  {debtAmountUsdDisplay && parseFloat(debtAmountUsdDisplay) > 0 && (
+                    <p className="text-xs text-blue-700 font-medium pl-1">
+                      ≈ {formatNumber(parseFloat(debtAmountUsdDisplay) * usdRate)} so'm
+                    </p>
+                  )}
+                </div>
+
+                {/* Jami ko'rsatish */}
+                {((parseFloat(debtAmountDisplay?.replace(/\s/g, '') || '0') > 0) ||
+                  (parseFloat(debtAmountUsdDisplay || '0') > 0)) && (
+                  <div className="bg-white border-2 border-orange-300 rounded-xl p-3 space-y-1.5">
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Jami qarz:</p>
+                    {parseFloat(debtAmountDisplay?.replace(/\s/g, '') || '0') > 0 && (
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm text-gray-600 flex items-center gap-1">
+                          <span className="px-1 py-0.5 bg-green-100 text-green-700 rounded text-xs font-bold">UZS</span>
+                          So'm qarz:
+                        </span>
+                        <span className="font-bold text-orange-700">
+                          {formatMoney(parseFloat(debtAmountDisplay.replace(/\s/g, '')))}
+                        </span>
+                      </div>
+                    )}
+                    {parseFloat(debtAmountUsdDisplay || '0') > 0 && (
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm text-gray-600 flex items-center gap-1">
+                          <span className="px-1 py-0.5 bg-blue-100 text-blue-700 rounded text-xs font-bold">USD</span>
+                          Dollar qarz:
+                        </span>
+                        <span className="font-bold text-orange-700">
+                          ${parseFloat(debtAmountUsdDisplay || '0').toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </span>
+                      </div>
+                    )}
+                    <div className="border-t border-orange-200 pt-1.5 flex justify-between items-center">
+                      <span className="text-sm font-semibold text-gray-700">Umumiy (so'mda):</span>
+                      <span className="font-bold text-lg text-red-600">
+                        {formatMoney(
+                          (parseFloat(debtAmountDisplay?.replace(/\s/g, '') || '0')) +
+                          (parseFloat(debtAmountUsdDisplay || '0') * usdRate)
+                        )}
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Izoh */}
+                <div className="space-y-1">
+                  <label className="text-sm text-gray-600">
+                    {editingCustomer ? "O'zgartirish sababi" : "Qarz izohi (ixtiyoriy)"}
+                  </label>
+                  <Input
+                    {...register('initial_debt_note')}
+                    placeholder={editingCustomer ? "Masalan: Direktor tomonidan tuzatildi" : "Masalan: Eski do'kondan qarz"}
+                  />
+                </div>
+
                 {editingCustomer && (
                   <p className="text-xs text-red-500">⚠ Faqat direktor o'zgartira oladi. O'zgartirish tarixda saqlanadi.</p>
                 )}
               </div>
             )}
 
-            <DialogFooter>
+            </div>
+            {/* Fixed footer */}
+            <div className="px-5 py-4 border-t border-border flex-shrink-0">
+            <DialogFooter className="">
               <Button type="button" variant="outline" onClick={() => {
                 setShowAddDialog(false)
                 setEditingCustomer(null)
                 setDebtAmountDisplay('')
+                setDebtAmountUsdDisplay('')
                 reset()
               }}>
                 {t('cancel')}
@@ -1317,6 +1622,7 @@ export default function CustomersPage() {
                 {(createCustomer.isPending || updateCustomer.isPending) ? t('saving') : t('save')}
               </Button>
             </DialogFooter>
+            </div>
           </form>
         </DialogContent>
       </Dialog>
@@ -1354,16 +1660,19 @@ export default function CustomersPage() {
       </Dialog>
 
       {/* Payment Dialog */}
-      <Dialog open={showPaymentDialog} onOpenChange={setShowPaymentDialog}>
-        <DialogContent className="max-w-[380px]">
+      <Dialog open={showPaymentDialog} onOpenChange={(open) => {
+        setShowPaymentDialog(open)
+        if (!open) { setPaymentAmountDisplay(''); setPaymentCurrency('UZS'); setPaymentTargetDebt('UZS'); resetPayment() }
+      }}>
+        <DialogContent className="max-w-[400px]">
           <DialogHeader>
             <DialogTitle className="pr-6">{t('acceptPayment')}</DialogTitle>
           </DialogHeader>
 
           {selectedCustomer && (
-            <div className="bg-gradient-to-r from-red-50 to-orange-50 p-3 rounded-lg mb-3">
+            <div className="bg-gradient-to-r from-red-50 to-orange-50 p-3 rounded-xl space-y-2">
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-white rounded-full">
+                <div className="p-2 bg-white rounded-full shadow-sm">
                   <User className="w-4 h-4 text-red-500" />
                 </div>
                 <div>
@@ -1371,31 +1680,172 @@ export default function CustomersPage() {
                   <p className="text-xs text-gray-500">{formatPhone(selectedCustomer.phone)}</p>
                 </div>
               </div>
-              <div className="mt-2 p-2 bg-white rounded-lg text-center">
-                <p className="text-xs text-gray-500">{t('currentDebt')}:</p>
-                <p className="text-lg font-bold text-red-600">{formatMoney(selectedCustomer.current_debt)}</p>
+              {/* Debt display — UZS and USD separately */}
+              <div className="grid grid-cols-2 gap-2">
+                {Number(selectedCustomer.current_debt) > 0 && (
+                  <div className="bg-white rounded-lg p-2 text-center">
+                    <p className="text-xs text-gray-400 flex items-center justify-center gap-1">
+                      <span className="w-2 h-2 rounded-full bg-green-500 inline-block"></span>so'm qarz
+                    </p>
+                    <p className="text-sm font-bold text-red-600">{formatMoney(selectedCustomer.current_debt)}</p>
+                  </div>
+                )}
+                {Number(selectedCustomer.current_debt_usd) > 0 && (
+                  <div className="bg-white rounded-lg p-2 text-center">
+                    <p className="text-xs text-gray-400 flex items-center justify-center gap-1">
+                      <span className="w-2 h-2 rounded-full bg-blue-500 inline-block"></span>dollar qarz
+                    </p>
+                    <p className="text-sm font-bold text-blue-600">
+                      ${Number(selectedCustomer.current_debt_usd).toLocaleString('ru-RU', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                    </p>
+                  </div>
+                )}
+                {Number(selectedCustomer.current_debt) === 0 && Number(selectedCustomer.current_debt_usd) === 0 && (
+                  <div className="col-span-2 bg-white rounded-lg p-2 text-center">
+                    <p className="text-xs text-green-600 font-medium">✓ Qarz yo'q</p>
+                  </div>
+                )}
               </div>
             </div>
           )}
 
           <form onSubmit={handlePaymentSubmit(onPaymentSubmit)} className="space-y-3">
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium">{t('paymentAmount')} *</label>
-              <input
-                type="text"
-                inputMode="numeric"
-                value={paymentAmountDisplay}
-                onChange={(e) => {
-                  const raw = e.target.value.replace(/\s/g, '')
-                  const num = parseFloat(raw) || 0
-                  setPaymentAmountDisplay(num > 0 ? formatInputNumber(num) : '')
-                  setPaymentValue('amount', num)
-                }}
-                placeholder={t('enterAmount')}
-                className="w-full h-11 px-3 text-base font-bold text-center border-2 border-gray-200 rounded-lg focus:border-blue-500 outline-none"
-              />
+            {/* Currency toggle */}
+            <div>
+              {/* Step 1: To'lov valyutasi */}
+              <div>
+                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5 block">
+                  1. To'lov valyutasi
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => { setPaymentCurrency('UZS'); setPaymentAmountDisplay(''); setPaymentValue('amount', 0) }}
+                    className={`p-2.5 rounded-xl border-2 font-semibold text-sm transition-all ${
+                      paymentCurrency === 'UZS'
+                        ? 'border-green-500 bg-green-50 text-green-700'
+                        : 'border-gray-200 text-gray-500 hover:border-gray-300'
+                    }`}
+                  >
+                    <span className="block text-base mb-0.5">🇺🇿 So'm</span>
+                    <span className="text-xs font-normal opacity-70">UZS da to'layman</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setPaymentCurrency('USD'); setPaymentAmountDisplay(''); setPaymentValue('amount', 0) }}
+                    className={`p-2.5 rounded-xl border-2 font-semibold text-sm transition-all ${
+                      paymentCurrency === 'USD'
+                        ? 'border-blue-500 bg-blue-50 text-blue-700'
+                        : 'border-gray-200 text-gray-500 hover:border-gray-300'
+                    }`}
+                  >
+                    <span className="block text-base mb-0.5">🇺🇸 Dollar</span>
+                    <span className="text-xs font-normal opacity-70">$ da to'layman</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Step 2: Qaysi qarzdan ayirish - show when both debts exist */}
+              {(Number((selectedCustomer as any)?.current_debt_usd || 0) > 0 && Number(selectedCustomer?.current_debt || 0) > 0) && (
+                <div>
+                  <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5 block">
+                    2. Qaysi qarzdan ayirish kerak?
+                  </label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setPaymentTargetDebt('UZS')}
+                      className={`p-2.5 rounded-xl border-2 text-sm transition-all ${
+                        paymentTargetDebt === 'UZS'
+                          ? 'border-orange-500 bg-orange-50 text-orange-700'
+                          : 'border-gray-200 text-gray-500 hover:border-gray-300'
+                      }`}
+                    >
+                      <span className="block font-semibold">So'm qarzdan</span>
+                      <span className="text-xs opacity-80">{formatMoney(selectedCustomer?.current_debt || 0)}</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPaymentTargetDebt('USD')}
+                      className={`p-2.5 rounded-xl border-2 text-sm transition-all ${
+                        paymentTargetDebt === 'USD'
+                          ? 'border-blue-500 bg-blue-50 text-blue-700'
+                          : 'border-gray-200 text-gray-500 hover:border-gray-300'
+                      }`}
+                    >
+                      <span className="block font-semibold">Dollar qarzdan</span>
+                      <span className="text-xs opacity-80">${Number((selectedCustomer as any)?.current_debt_usd || 0).toLocaleString('ru-RU', {minimumFractionDigits:2, maximumFractionDigits:2})}</span>
+                    </button>
+                  </div>
+                  {/* Conversion hint */}
+                  {paymentCurrency !== paymentTargetDebt && (
+                    <div className="mt-2 p-2 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-700">
+                      {paymentCurrency === 'USD' && paymentTargetDebt === 'UZS' && (
+                        <span>1$ = {formatNumber(usdRate)} so'm kursida so'm qarzdan ayiriladi</span>
+                      )}
+                      {paymentCurrency === 'UZS' && paymentTargetDebt === 'USD' && (
+                        <span>1$ = {formatNumber(usdRate)} so'm kursida dollar qarzdan ayiriladi</span>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+              {/* Auto-set target if only one debt type */}
+              {(Number((selectedCustomer as any)?.current_debt_usd || 0) > 0 && !(Number(selectedCustomer?.current_debt || 0) > 0)) && (
+                <div className="p-2 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-700 text-center">
+                  Faqat <strong>dollar qarz</strong> mavjud
+                </div>
+              )}
+              {(Number(selectedCustomer?.current_debt || 0) > 0 && !(Number((selectedCustomer as any)?.current_debt_usd || 0) > 0)) && (
+                <div className="p-2 bg-green-50 border border-green-200 rounded-lg text-xs text-green-700 text-center">
+                  Faqat <strong>so'm qarz</strong> mavjud
+                </div>
+              )}
             </div>
 
+            {/* Amount input */}
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">{t('paymentAmount')} *</label>
+              <div className="relative">
+                <span className={`absolute left-3 top-1/2 -translate-y-1/2 font-bold text-sm ${
+                  paymentCurrency === 'USD' ? 'text-blue-600' : 'text-green-600'
+                }`}>
+                  {paymentCurrency === 'USD' ? '$' : 'UZS'}
+                </span>
+                <input
+                  type="text"
+                  inputMode={paymentCurrency === 'USD' ? 'decimal' : 'numeric'}
+                  value={paymentAmountDisplay}
+                  onChange={(e) => {
+                    const raw = e.target.value.replace(paymentCurrency === 'USD' ? /[^\d.]/g : /\s/g, '')
+                    const num = parseFloat(raw) || 0
+                    if (paymentCurrency === 'USD') {
+                      setPaymentAmountDisplay(raw)
+                    } else {
+                      setPaymentAmountDisplay(num > 0 ? formatInputNumber(num) : '')
+                    }
+                    setPaymentValue('amount', num)
+                  }}
+                  placeholder={paymentCurrency === 'USD' ? '0.00' : '0'}
+                  className={`w-full h-12 pl-12 pr-3 text-base font-bold text-center border-2 rounded-xl outline-none transition-colors ${
+                    paymentCurrency === 'USD'
+                      ? 'border-blue-200 focus:border-blue-500 bg-blue-50/30'
+                      : 'border-green-200 focus:border-green-500 bg-green-50/30'
+                  }`}
+                />
+              </div>
+              {/* Equivalent hint */}
+              {paymentAmountDisplay && parseFloat(paymentAmountDisplay.replace(/\s/g, '')) > 0 && (
+                <p className="text-xs text-gray-500 text-center">
+                  {paymentCurrency === 'USD'
+                    ? `≈ ${formatMoney(parseFloat(paymentAmountDisplay || '0') * usdRate)} so'm`
+                    : `≈ $${formatNumber(parseFloat(paymentAmountDisplay.replace(/\s/g, '')) / usdRate, 2)}`
+                  }
+                </p>
+              )}
+            </div>
+
+            {/* Payment type */}
             <div className="space-y-1.5">
               <label className="text-sm font-medium">{t('paymentType')}</label>
               <div className="grid grid-cols-3 gap-2">
@@ -1420,18 +1870,22 @@ export default function CustomersPage() {
               <Input {...registerPayment('description')} placeholder={t('optionalNote')} className="text-sm" />
             </div>
 
-            <div className="flex gap-2 pt-2">
+            <div className="flex gap-2 pt-1">
               <button
                 type="button"
-                onClick={() => setShowPaymentDialog(false)}
-                className="flex-1 h-10 border-2 border-gray-200 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
+                onClick={() => { setShowPaymentDialog(false); setPaymentCurrency('UZS'); setPaymentTargetDebt('UZS') }}
+                className="flex-1 h-11 border-2 border-gray-200 rounded-xl text-sm font-medium hover:bg-gray-50 transition-colors"
               >
                 {t('cancel')}
               </button>
               <button
                 type="submit"
                 disabled={payDebt.isPending}
-                className="flex-1 h-10 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition-colors"
+                className={`flex-1 h-11 disabled:opacity-50 text-white rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition-colors ${
+                  paymentCurrency === 'USD'
+                    ? 'bg-blue-600 hover:bg-blue-700'
+                    : 'bg-green-600 hover:bg-green-700'
+                }`}
               >
                 {payDebt.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Banknote className="w-4 h-4" />}
                 {t('accept')}
@@ -1459,53 +1913,106 @@ export default function CustomersPage() {
                   <p className="text-xs text-gray-500">{formatPhone(selectedCustomer.phone)}</p>
                 </div>
               </div>
-              <div className="mt-2 p-2 bg-white rounded-lg text-center">
-                <p className="text-xs text-gray-500">Joriy qarz:</p>
-                <p className="text-lg font-bold text-red-600">{formatMoney(selectedCustomer.current_debt)}</p>
+              <div className="mt-2 grid grid-cols-2 gap-2">
+                {Number(selectedCustomer.current_debt) > 0 && (
+                  <div className="p-2 bg-white rounded-lg text-center">
+                    <p className="text-xs text-gray-500">So'm qarz:</p>
+                    <p className="text-sm font-bold text-red-600">{formatMoney(selectedCustomer.current_debt)}</p>
+                  </div>
+                )}
+                {Number(selectedCustomer.current_debt_usd) > 0 && (
+                  <div className="p-2 bg-white rounded-lg text-center">
+                    <p className="text-xs text-gray-500">Dollar qarz:</p>
+                    <p className="text-sm font-bold text-blue-600">${Number(selectedCustomer.current_debt_usd).toLocaleString('ru-RU', {minimumFractionDigits:2, maximumFractionDigits:2})}</p>
+                  </div>
+                )}
+                {Number(selectedCustomer.current_debt) === 0 && Number(selectedCustomer.current_debt_usd) === 0 && (
+                  <div className="col-span-2 p-2 bg-white rounded-lg text-center">
+                    <p className="text-xs text-green-600 font-medium">✓ Qarz yo'q</p>
+                  </div>
+                )}
               </div>
             </div>
           )}
 
           <form onSubmit={handleAddDebtSubmit(onAddDebtSubmit)} className="space-y-3">
+            {/* Currency toggle */}
+            <div>
+              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5 block">Qarz valyutasi</label>
+              <div className="grid grid-cols-2 gap-2">
+                <button type="button"
+                  onClick={() => { setAddDebtCurrency('UZS'); setAddDebtAmountDisplay(''); setAddDebtValue('amount', 0) }}
+                  className={`p-2.5 rounded-xl border-2 font-semibold text-sm transition-all ${
+                    addDebtCurrency === 'UZS' ? 'border-orange-500 bg-orange-50 text-orange-700' : 'border-gray-200 text-gray-400 hover:border-gray-300'
+                  }`}
+                >
+                  <span className="block">🇺🇿 So'm</span>
+                  <span className="text-xs font-normal opacity-70">UZS da qarz</span>
+                </button>
+                <button type="button"
+                  onClick={() => { setAddDebtCurrency('USD'); setAddDebtAmountDisplay(''); setAddDebtValue('amount', 0) }}
+                  className={`p-2.5 rounded-xl border-2 font-semibold text-sm transition-all ${
+                    addDebtCurrency === 'USD' ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-400 hover:border-gray-300'
+                  }`}
+                >
+                  <span className="block">🇺🇸 Dollar</span>
+                  <span className="text-xs font-normal opacity-70">$ da qarz</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Amount */}
             <div className="space-y-1.5">
               <label className="text-sm font-medium">Qarz summasi *</label>
-              <input
-                type="text"
-                inputMode="numeric"
-                value={addDebtAmountDisplay}
-                onChange={(e) => {
-                  const raw = e.target.value.replace(/\s/g, '')
-                  const num = parseFloat(raw) || 0
-                  setAddDebtAmountDisplay(num > 0 ? formatInputNumber(num) : '')
-                  setAddDebtValue('amount', num)
-                }}
-                placeholder="Summa kiriting"
-                className="w-full h-11 px-3 text-base font-bold text-center border-2 border-orange-200 rounded-lg focus:border-orange-500 outline-none"
-              />
+              <div className="relative">
+                <span className={`absolute left-3 top-1/2 -translate-y-1/2 font-bold text-sm ${
+                  addDebtCurrency === 'USD' ? 'text-blue-600' : 'text-orange-600'
+                }`}>{addDebtCurrency === 'USD' ? '$' : 'UZS'}</span>
+                <input
+                  type="text"
+                  inputMode={addDebtCurrency === 'USD' ? 'decimal' : 'numeric'}
+                  value={addDebtAmountDisplay}
+                  onChange={(e) => {
+                    const raw = e.target.value.replace(addDebtCurrency === 'USD' ? /[^\d.]/g : /\s/g, '')
+                    const num = parseFloat(raw) || 0
+                    setAddDebtAmountDisplay(addDebtCurrency === 'USD' ? raw : (num > 0 ? formatInputNumber(num) : ''))
+                    setAddDebtValue('amount', num)
+                  }}
+                  placeholder={addDebtCurrency === 'USD' ? '0.00' : '0'}
+                  className={`w-full h-11 pl-12 pr-3 text-base font-bold text-center border-2 rounded-xl outline-none transition-colors ${
+                    addDebtCurrency === 'USD' ? 'border-blue-200 focus:border-blue-500 bg-blue-50/30' : 'border-orange-200 focus:border-orange-500 bg-orange-50/30'
+                  }`}
+                />
+              </div>
+              {addDebtAmountDisplay && parseFloat(addDebtAmountDisplay.replace(/\s/g,'')) > 0 && (
+                <p className="text-xs text-gray-500 text-center">
+                  {addDebtCurrency === 'USD'
+                    ? `≈ ${formatMoney(parseFloat(addDebtAmountDisplay||'0') * usdRate)} so'm`
+                    : `≈ $${formatNumber(parseFloat(addDebtAmountDisplay.replace(/\s/g,'')) / usdRate, 2)}`
+                  }
+                </p>
+              )}
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-sm font-medium">Izoh (sabab) *</label>
+              <label className="text-sm font-medium">Izoh (sabab)</label>
               <textarea
-                {...registerAddDebt('description', { required: true })}
+                {...registerAddDebt('description')}
                 placeholder="Qarz sababi yoki izohi..."
-                rows={3}
-                className="w-full px-3 py-2 text-sm border-2 border-gray-200 rounded-lg focus:border-orange-500 outline-none resize-none"
+                rows={2}
+                className="w-full px-3 py-2 text-sm border-2 border-gray-200 rounded-xl focus:border-orange-500 outline-none resize-none"
               />
             </div>
 
-            <div className="flex gap-2 pt-2">
-              <button
-                type="button"
-                onClick={() => setShowAddDebtDialog(false)}
-                className="flex-1 h-10 border-2 border-gray-200 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
-              >
-                Bekor qilish
-              </button>
-              <button
-                type="submit"
-                disabled={addDebtMutation.isPending}
-                className="flex-1 h-10 bg-orange-600 hover:bg-orange-700 disabled:opacity-50 text-white rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition-colors"
+            <div className="flex gap-2 pt-1">
+              <button type="button"
+                onClick={() => { setShowAddDebtDialog(false); setAddDebtCurrency('UZS') }}
+                className="flex-1 h-11 border-2 border-gray-200 rounded-xl text-sm font-medium hover:bg-gray-50 transition-colors"
+              >Bekor qilish</button>
+              <button type="submit" disabled={addDebtMutation.isPending}
+                className={`flex-1 h-11 disabled:opacity-50 text-white rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition-colors ${
+                  addDebtCurrency === 'USD' ? 'bg-blue-600 hover:bg-blue-700' : 'bg-orange-600 hover:bg-orange-700'
+                }`}
               >
                 {addDebtMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
                 Qarz qo'shish
@@ -1517,132 +2024,147 @@ export default function CustomersPage() {
 
       {/* Customer Detail Dialog */}
       <Dialog open={showDetailDialog} onOpenChange={setShowDetailDialog}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>{t('customerDetails')}</DialogTitle>
-            <DialogDescription>{t('fullHistoryAndStats')}</DialogDescription>
-          </DialogHeader>
+        <DialogContent className="w-full max-w-3xl h-[100dvh] sm:h-auto sm:max-h-[90vh] flex flex-col p-0 gap-0 rounded-none sm:rounded-xl">
+          {/* ── Fixed header ── */}
+          <div className="flex-shrink-0 px-4 pt-4 pb-3 border-b border-border">
+            <DialogHeader>
+              <DialogTitle className="text-base">{t('customerDetails')}</DialogTitle>
+            </DialogHeader>
+          </div>
 
+          {/* ── Scrollable body ── */}
+          <div className="flex-1 overflow-y-auto">
           {selectedCustomer && (
-            <div className="space-y-6">
-              {/* Customer Info Header */}
-              <div className="bg-gradient-to-r from-primary/10 to-primary/5 p-4 rounded-pos">
-                <div className="flex items-start justify-between flex-wrap gap-4">
-                  <div className="flex items-center gap-4">
-                    <div className="p-4 bg-white rounded-full shadow-sm">
-                      <User className="w-8 h-8 text-primary" />
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <h3 className="text-pos-lg font-bold">{selectedCustomer.name}</h3>
-                        {getTypeBadge(selectedCustomer.customer_type)}
-                        {(selectedCustomer as any).category_name && (
-                          <span
-                            className="px-2 py-0.5 rounded-full text-xs font-medium text-white"
-                            style={{ backgroundColor: (selectedCustomer as any).category_color || '#6366f1' }}
-                          >
-                            <Tag className="w-3 h-3 inline mr-1" />
-                            {(selectedCustomer as any).category_name}
-                          </span>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-2 mt-1">
-                        <Tag className="w-3.5 h-3.5 text-purple-500" />
-                        <select
-                          className="text-xs border border-purple-200 rounded-lg px-2 py-1 bg-purple-50 text-purple-700"
-                          value={(selectedCustomer as any).category_id || ''}
-                          onChange={(e) => handleAssignCategory(selectedCustomer.id, e.target.value ? Number(e.target.value) : null)}
-                        >
-                          <option value="">— Kategoriya yo'q —</option>
-                          {categories.map((cat: any) => (
-                            <option key={cat.id} value={cat.id}>{cat.name}</option>
-                          ))}
-                        </select>
-                      </div>
-                      <div className="flex flex-wrap gap-4 mt-2 text-sm text-text-secondary">
-                        <span className="flex items-center gap-1">
-                          <Phone className="w-4 h-4" />
-                          {formatPhone(selectedCustomer.phone)}
+            <div className="space-y-4 p-4">
+
+              {/* ── Customer card ── */}
+              <div className="bg-gradient-to-br from-primary/10 to-primary/5 rounded-2xl p-4 space-y-3">
+                {/* Name + badges */}
+                <div className="flex items-start gap-3">
+                  <div className="p-3 bg-white rounded-full shadow-sm flex-shrink-0">
+                    <User className="w-6 h-6 text-primary" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h3 className="text-lg font-bold leading-tight">{selectedCustomer.name}</h3>
+                      {getTypeBadge(selectedCustomer.customer_type)}
+                      {(selectedCustomer as any).category_name && (
+                        <span className="px-2 py-0.5 rounded-full text-xs font-medium text-white"
+                          style={{ backgroundColor: (selectedCustomer as any).category_color || '#6366f1' }}>
+                          {(selectedCustomer as any).category_name}
                         </span>
-                        {selectedCustomer.company_name && (
-                          <span className="flex items-center gap-1">
-                            <Building className="w-4 h-4" />
-                            {selectedCustomer.company_name}
-                          </span>
-                        )}
-                        {selectedCustomer.email && (
-                          <span className="flex items-center gap-1">
-                            <Mail className="w-4 h-4" />
-                            {selectedCustomer.email}
-                          </span>
-                        )}
-                        {selectedCustomer.telegram_id && (
-                          <span className="flex items-center gap-1">
-                            <span className="w-4 h-4 text-blue-500 font-bold text-xs">TG</span>
-                            {selectedCustomer.telegram_id}
-                          </span>
-                        )}
-                        {selectedCustomer.address && (
-                          <span className="flex items-center gap-1">
-                            <MapPin className="w-4 h-4" />
-                            {selectedCustomer.address}
-                          </span>
-                        )}
-                      </div>
+                      )}
+                    </div>
+                    {/* Contact info */}
+                    <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1.5 text-sm text-text-secondary">
+                      <a href={`tel:${selectedCustomer.phone}`} className="flex items-center gap-1 text-primary font-medium">
+                        <Phone className="w-3.5 h-3.5" />{formatPhone(selectedCustomer.phone)}
+                      </a>
+                      {selectedCustomer.company_name && (
+                        <span className="flex items-center gap-1"><Building className="w-3.5 h-3.5" />{selectedCustomer.company_name}</span>
+                      )}
+                      {selectedCustomer.address && (
+                        <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5" />{selectedCustomer.address}</span>
+                      )}
+                    </div>
+                    {/* Category select */}
+                    <div className="flex items-center gap-1.5 mt-2">
+                      <Tag className="w-3 h-3 text-purple-500 flex-shrink-0" />
+                      <select
+                        className="text-xs border border-purple-200 rounded-lg px-2 py-1 bg-white text-purple-700 flex-1 max-w-[180px]"
+                        value={(selectedCustomer as any).category_id || ''}
+                        onChange={(e) => handleAssignCategory(selectedCustomer.id, e.target.value ? Number(e.target.value) : null)}
+                      >
+                        <option value="">— Kategoriya yo'q —</option>
+                        {categories.map((cat: any) => (
+                          <option key={cat.id} value={cat.id}>{cat.name}</option>
+                        ))}
+                      </select>
                     </div>
                   </div>
-                  {selectedCustomer.current_debt > 0 && (
-                    <Button variant="success" onClick={() => {
+                </div>
+
+                {/* Debt summary chips */}
+                <div className="flex flex-wrap gap-2">
+                  {Number(selectedCustomer.current_debt) > 0 && (
+                    <div className="flex items-center gap-1.5 bg-red-50 border border-red-200 rounded-xl px-3 py-1.5">
+                      <span className="w-2 h-2 rounded-full bg-red-500 flex-shrink-0"></span>
+                      <span className="text-xs text-red-700 font-semibold">{formatMoney(selectedCustomer.current_debt)}</span>
+                    </div>
+                  )}
+                  {Number(selectedCustomer.current_debt_usd) > 0 && (
+                    <div className="flex items-center gap-1.5 bg-blue-50 border border-blue-200 rounded-xl px-3 py-1.5">
+                      <span className="w-2 h-2 rounded-full bg-blue-500 flex-shrink-0"></span>
+                      <span className="text-xs text-blue-700 font-semibold">
+                        ${Number(selectedCustomer.current_debt_usd).toLocaleString('ru-RU',{minimumFractionDigits:2,maximumFractionDigits:2})}
+                      </span>
+                    </div>
+                  )}
+                  {Number(selectedCustomer.advance_balance) > 0 && (
+                    <div className="flex items-center gap-1.5 bg-green-50 border border-green-200 rounded-xl px-3 py-1.5">
+                      <span className="w-2 h-2 rounded-full bg-green-500 flex-shrink-0"></span>
+                      <span className="text-xs text-green-700 font-semibold">Avans: {formatMoney(selectedCustomer.advance_balance)}</span>
+                    </div>
+                  )}
+                  {Number(selectedCustomer.current_debt) === 0 && Number(selectedCustomer.current_debt_usd) === 0 && (
+                    <div className="flex items-center gap-1.5 bg-green-50 border border-green-200 rounded-xl px-3 py-1.5">
+                      <span className="text-xs text-green-700 font-semibold">✓ Qarz yo'q</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Action buttons */}
+                <div className="flex gap-2">
+                  {(selectedCustomer.current_debt > 0 || Number(selectedCustomer.current_debt_usd) > 0) && (
+                    <Button variant="success" size="sm" className="flex-1" onClick={() => {
                       setShowDetailDialog(false)
                       setTimeout(() => handlePayClick(selectedCustomer), 100)
                     }}>
-                      <Banknote className="w-4 h-4 mr-2" />
-                      {t('acceptPayment')}
+                      <Banknote className="w-4 h-4 mr-1.5" />To'lov
                     </Button>
                   )}
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      setShowDetailDialog(false)
-                      setTimeout(() => handleAddDebtClick(selectedCustomer), 100)
-                    }}
-                    className="text-orange-600 border-orange-300 hover:bg-orange-50"
-                  >
-                    <Plus className="w-4 h-4 mr-2" />
-                    Qarz qo'shish
+                  <Button variant="outline" size="sm" className="flex-1 text-orange-600 border-orange-300" onClick={() => {
+                    setShowDetailDialog(false)
+                    setTimeout(() => handleAddDebtClick(selectedCustomer), 100)
+                  }}>
+                    <Plus className="w-4 h-4 mr-1.5" />Qarz qo'shish
                   </Button>
                 </div>
               </div>
 
-              {/* Stats Grid */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <Card>
-                  <CardContent className="p-4 text-center">
-                    <p className="text-sm text-text-secondary">{t('totalPurchases')}</p>
-                    <p className="text-pos-lg font-bold text-primary">{formatMoney(selectedCustomer.total_purchases)}</p>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardContent className="p-4 text-center">
-                    <p className="text-sm text-text-secondary">{t('currentDebt')}</p>
-                    <p className={cn("text-pos-lg font-bold", selectedCustomer.current_debt > 0 ? "text-danger" : "text-success")}>
-                      {formatMoney(selectedCustomer.current_debt)}
-                    </p>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardContent className="p-4 text-center">
-                    <p className="text-sm text-text-secondary">{t('advanceBalance')}</p>
-                    <p className="text-pos-lg font-bold text-success">{formatMoney(selectedCustomer.advance_balance)}</p>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardContent className="p-4 text-center">
-                    <p className="text-sm text-text-secondary">{t('creditLimit')}</p>
-                    <p className="text-pos-lg font-bold">{formatMoney(selectedCustomer.credit_limit)}</p>
-                  </CardContent>
-                </Card>
+              {/* Stats Grid - 2x2 on mobile, 4 col on desktop */}
+              <div className="grid grid-cols-2 gap-2.5">
+                <div className="bg-blue-50 border border-blue-100 rounded-2xl p-3 text-center">
+                  <p className="text-xs text-blue-600 mb-0.5">Jami xarid</p>
+                  <p className="text-sm font-bold text-blue-800 truncate">{formatMoney(selectedCustomer.total_purchases)}</p>
+                </div>
+                <div className={`rounded-2xl p-3 text-center border ${Number(selectedCustomer.advance_balance) > 0 ? 'bg-green-50 border-green-100' : 'bg-gray-50 border-gray-100'}`}>
+                  <p className="text-xs text-gray-500 mb-0.5">Avans</p>
+                  <p className="text-sm font-bold text-green-600 truncate">{formatMoney(selectedCustomer.advance_balance)}</p>
+                </div>
+                <div className={`rounded-2xl p-3 text-center border ${Number(selectedCustomer.current_debt) > 0 ? 'bg-red-50 border-red-200' : 'bg-gray-50 border-gray-100'}`}>
+                  <p className="text-xs text-gray-500 mb-0.5 flex items-center justify-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-green-500 inline-block"></span>Qarz (so'm)
+                  </p>
+                  <p className={`text-sm font-bold truncate ${Number(selectedCustomer.current_debt) > 0 ? 'text-danger' : 'text-success'}`}>
+                    {Number(selectedCustomer.current_debt) > 0 ? formatMoney(selectedCustomer.current_debt) : "0 so'm"}
+                  </p>
+                </div>
+                <div className={`rounded-2xl p-3 text-center border ${Number(selectedCustomer.current_debt_usd) > 0 ? 'bg-blue-50 border-blue-200' : 'bg-gray-50 border-gray-100'}`}>
+                  <p className="text-xs text-gray-500 mb-0.5 flex items-center justify-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-blue-500 inline-block"></span>Qarz ($)
+                  </p>
+                  <p className={`text-sm font-bold truncate ${Number(selectedCustomer.current_debt_usd) > 0 ? 'text-blue-600' : 'text-success'}`}>
+                    ${Number(selectedCustomer.current_debt_usd || 0).toLocaleString('ru-RU',{minimumFractionDigits:2,maximumFractionDigits:2})}
+                  </p>
+                </div>
               </div>
+              {Number(selectedCustomer.credit_limit) > 0 && (
+                <div className="flex items-center justify-between px-3 py-2 bg-gray-50 rounded-xl border border-border text-sm">
+                  <span className="text-text-secondary">{t('creditLimit')}</span>
+                  <span className="font-semibold">{formatMoney(selectedCustomer.credit_limit)}</span>
+                </div>
+              )}
 
               {/* Professional Excel Export Button */}
               <div className="bg-gradient-to-r from-green-50 to-blue-50 border border-green-200 rounded-pos p-4">
@@ -1817,6 +2339,7 @@ export default function CustomersPage() {
                           const isPayment = record.transaction_type === 'PAYMENT' || record.transaction_type === 'DEBT_PAYMENT'
                           const isSale = record.transaction_type === 'SALE'
                           const isManual = record.reference_type === 'manual_adjustment' || record.reference_type === 'adjustment'
+                          const isUsd = record.currency === 'USD'
 
                           return (
                             <tr key={record.id} className={cn("hover:bg-gray-50", isManual && "bg-orange-50/50")}>
@@ -1827,22 +2350,36 @@ export default function CustomersPage() {
                               <td className="px-4 py-3 text-sm">
                                 <Badge variant={isPayment ? 'success' : isSale ? 'warning' : isManual ? 'secondary' : 'secondary'}>
                                   {isPayment ? t('paymentTransaction') : isSale ? t('purchaseTransaction') : isManual ? '✏️ Qo\'shimcha qarz' : record.transaction_type}
+                                  {isUsd && <span className="ml-1 text-xs px-1 py-0.5 bg-blue-100 text-blue-700 rounded font-bold">$</span>}
                                 </Badge>
                               </td>
                               <td className={cn(
                                 "px-4 py-3 text-sm text-right font-semibold",
                                 isPayment ? "text-green-600" : "text-red-600"
                               )}>
-                                {isPayment ? '-' : '+'}{formatMoney(Math.abs(record.amount))}
+                                {record.currency === 'USD' ? (
+                                  <span className="flex items-center justify-end gap-1 text-blue-600">
+                                    {isPayment ? '−' : '+'}${Math.abs(Number(record.amount)).toLocaleString('ru-RU', {minimumFractionDigits:2,maximumFractionDigits:2})}
+                                    <span className="text-xs px-1 py-0.5 bg-blue-100 text-blue-700 rounded font-bold">USD</span>
+                                  </span>
+                                ) : (
+                                  <>{isPayment ? '-' : '+'}{formatMoney(Math.abs(Number(record.amount)))}</>
+                                )}
                               </td>
                               <td className="px-4 py-3 text-sm text-right text-gray-500">
-                                {formatMoney(record.balance_before)}
+                                {record.currency === 'USD'
+                                  ? `$${Number(record.balance_before).toLocaleString('ru-RU', {minimumFractionDigits:2,maximumFractionDigits:2})}`
+                                  : formatMoney(record.balance_before)
+                                }
                               </td>
                               <td className={cn(
                                 "px-4 py-3 text-sm text-right font-semibold",
                                 record.balance_after > 0 ? "text-red-600" : "text-green-600"
                               )}>
-                                {formatMoney(record.balance_after)}
+                                {record.currency === 'USD'
+                                  ? `$${Number(record.balance_after).toLocaleString('ru-RU', {minimumFractionDigits:2,maximumFractionDigits:2})}`
+                                  : formatMoney(record.balance_after)
+                                }
                               </td>
                               <td className="px-4 py-3 text-sm text-text-secondary max-w-[200px]">
                                 <div className="truncate" title={record.description || '-'}>
@@ -1867,6 +2404,7 @@ export default function CustomersPage() {
               </div>
             </div>
           )}
+          </div>{/* end scrollable body */}
         </DialogContent>
       </Dialog>
 

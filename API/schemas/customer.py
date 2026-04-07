@@ -58,7 +58,9 @@ class CustomerCreate(CustomerBase):
     category_id: Optional[int] = None
 
     # Initial debt (for migrating existing customers with debts)
-    initial_debt_amount: Optional[Decimal] = None  # Boshlang'ich qarz (UZS)
+    initial_debt_amount: Optional[Decimal] = None      # Boshlang'ich qarz (UZS)
+    initial_debt_amount_usd: Optional[Decimal] = None  # Boshlang'ich qarz (USD)
+    initial_debt_exchange_rate: Optional[Decimal] = None  # USD kursi (konvertatsiya uchun)
     initial_debt_note: Optional[str] = None  # Qarz izohi
 
 
@@ -84,7 +86,9 @@ class CustomerUpdate(BaseSchema):
     is_active: Optional[bool] = None
 
     # Debt adjustment (director only - handled in service)
-    adjust_debt_amount: Optional[Decimal] = None  # Yangi qarz summasi
+    adjust_debt_amount: Optional[Decimal] = None      # Yangi qarz summasi (UZS)
+    adjust_debt_amount_usd: Optional[Decimal] = None  # Yangi qarz summasi (USD)
+    adjust_debt_exchange_rate: Optional[Decimal] = None  # USD kursi
     adjust_debt_note: Optional[str] = None  # O'zgartirish sababi
 
 
@@ -94,6 +98,7 @@ class CustomerResponse(CustomerBase, TimestampMixin):
     id: int
     login: Optional[str] = None
     current_debt: Decimal = Decimal("0")
+    current_debt_usd: float = 0.0
     advance_balance: Decimal = Decimal("0")
     total_purchases: Decimal = Decimal("0")
     total_purchases_count: int = 0
@@ -199,7 +204,10 @@ class CustomerPaymentRequest(BaseModel):
     """Customer payment (debt reduction) request."""
 
     amount: Decimal
-    payment_type: str = "CASH"  # CASH, CARD, TRANSFER
+    currency: str = "UZS"         # To'lov valyutasi: UZS | USD
+    target_debt: str = "UZS"      # Qaysi qarzdan ayirish: UZS | USD
+    exchange_rate: Optional[Decimal] = None  # Joriy kurs (konvertatsiya uchun)
+    payment_type: str = "CASH"    # CASH, CARD, TRANSFER
     description: Optional[str] = None
 
     @field_validator("amount")
@@ -210,6 +218,20 @@ class CustomerPaymentRequest(BaseModel):
             raise ValueError("To'lov summasi 0 dan katta bo'lishi kerak")
         return v
 
+
+
+class AddDebtRequest(BaseModel):
+    """Manual debt addition request."""
+    amount: Decimal
+    currency: str = "UZS"   # UZS | USD
+    description: Optional[str] = None
+
+    @field_validator("amount")
+    @classmethod
+    def validate_amount(cls, v: Decimal) -> Decimal:
+        if v <= 0:
+            raise ValueError("Qarz summasi 0 dan katta bo'lishi kerak")
+        return v
 
 class CustomerAdvanceRequest(BaseModel):
     """Customer advance payment request."""

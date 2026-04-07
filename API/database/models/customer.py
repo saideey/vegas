@@ -53,8 +53,9 @@ class Customer(BaseModel, SoftDeleteMixin):
     
     # Financial info
     credit_limit = Column(Numeric(20, 4), default=0)  # Maksimal qarz limiti
-    current_debt = Column(Numeric(20, 4), default=0)  # Joriy qarz
-    advance_balance = Column(Numeric(20, 4), default=0)  # Oldindan to'langan summa (avans)
+    current_debt = Column(Numeric(20, 4), default=0)      # Joriy qarz (so'm)
+    current_debt_usd = Column(Numeric(20, 4), default=0)  # Joriy qarz (dollar)
+    advance_balance = Column(Numeric(20, 4), default=0)    # Oldindan to'langan summa (avans)
     
     # Statistics
     total_purchases = Column(Numeric(20, 4), default=0)  # Umumiy xarid summasi
@@ -121,7 +122,8 @@ class CustomerDebt(BaseModel):
     
     # Transaction type
     transaction_type = Column(String(20), nullable=False)  # debt, payment, advance
-    
+    currency = Column(String(3), nullable=False, default='UZS')  # UZS | USD
+
     # Amounts
     amount = Column(Numeric(20, 4), nullable=False)  # Positive for debt, negative for payment
     balance_before = Column(Numeric(20, 4), nullable=False)  # Debt before transaction

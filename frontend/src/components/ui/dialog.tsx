@@ -39,7 +39,7 @@ const DialogContent = React.forwardRef<
       aria-describedby={undefined}
       className={cn(
         'fixed left-[50%] top-[50%] z-50 w-[calc(100%-32px)] max-w-lg translate-x-[-50%] translate-y-[-50%]',
-        'border border-border bg-surface p-4 shadow-lg rounded-xl overflow-hidden',
+        'border border-border bg-surface shadow-lg rounded-xl',
         'data-[state=open]:animate-in data-[state=closed]:animate-out',
         'data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0',
         'data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95',
@@ -49,9 +49,7 @@ const DialogContent = React.forwardRef<
       )}
       {...props}
     >
-      <div className="w-full overflow-hidden">
-        {children}
-      </div>
+      {children}
       <DialogPrimitive.Close className="absolute right-3 top-3 rounded-full p-1 opacity-70 hover:opacity-100 hover:bg-gray-100 transition-all focus:outline-none">
         <X className="h-5 w-5" />
         <span className="sr-only">Yopish</span>

@@ -90,6 +90,44 @@ def ensure_missing_columns():
             ))
             missing_columns.append('products.use_calculator')
 
+        # customers jadvalidagi ustunlarni tekshirish
+        customers_columns = [col['name'] for col in inspector.get_columns('customers')]
+
+        # customer_debts jadvalidagi ustunlarni tekshirish
+        try:
+            debts_columns = [col['name'] for col in inspector.get_columns('customer_debts')]
+            if 'currency' not in debts_columns:
+                session.execute(text(
+                    "ALTER TABLE customer_debts ADD COLUMN currency VARCHAR(3) NOT NULL DEFAULT 'UZS'"
+                ))
+                session.execute(text(
+                    "UPDATE customer_debts SET currency = 'USD' WHERE reference_type IN ('adjustment_usd')"
+                ))
+                missing_columns.append('customer_debts.currency')
+        except Exception:
+            pass
+
+        if 'current_debt_usd' not in customers_columns:
+            session.execute(text(
+                "ALTER TABLE customers ADD COLUMN current_debt_usd NUMERIC(20,4) NOT NULL DEFAULT 0"
+            ))
+            missing_columns.append('customers.current_debt_usd')
+
+        if 'category_id' not in customers_columns:
+            session.execute(text(
+                "CREATE TABLE IF NOT EXISTS customer_categories ("
+                "id SERIAL PRIMARY KEY, name VARCHAR(100) NOT NULL UNIQUE, "
+                "description TEXT, color VARCHAR(20) DEFAULT '#6366f1', "
+                "is_active BOOLEAN NOT NULL DEFAULT true, sort_order INTEGER NOT NULL DEFAULT 0, "
+                "created_at VARCHAR(50), updated_at VARCHAR(50), "
+                "is_deleted BOOLEAN NOT NULL DEFAULT false, "
+                "deleted_at VARCHAR(50), deleted_by_id INTEGER)"
+            ))
+            session.execute(text(
+                "ALTER TABLE customers ADD COLUMN category_id INTEGER REFERENCES customer_categories(id)"
+            ))
+            missing_columns.append('customers.category_id')
+
         if missing_columns:
             logger.warning(f"⚠️  Qo'shilgan ustunlar: {', '.join(missing_columns)}")
         else:
