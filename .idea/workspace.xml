@@ -5,8 +5,6 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="4410bd95-49ec-437f-95cf-eb7c109e8a00" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/telegram_bot/customer_excel.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.env" beforeDir="false" afterPath="$PROJECT_DIR$/.env" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/.gitignore" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/encodings.xml" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/inspectionProfiles/profiles_settings.xml" beforeDir="false" />
@@ -15,10 +13,15 @@
       <change beforePath="$PROJECT_DIR$/.idea/modules.xml" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/vcs.xml" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/API/routers/bot_api.py" beforeDir="false" afterPath="$PROJECT_DIR$/API/routers/bot_api.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/API/services/customer.py" beforeDir="false" afterPath="$PROJECT_DIR$/API/services/customer.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/telegram_bot/customer_api.py" beforeDir="false" afterPath="$PROJECT_DIR$/telegram_bot/customer_api.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/telegram_bot/handlers.py" beforeDir="false" afterPath="$PROJECT_DIR$/telegram_bot/handlers.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/src/pages/Customers.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/pages/Customers.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/src/pages/Expenses.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/pages/Expenses.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/src/pages/Products.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/pages/Products.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/src/pages/Reports.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/pages/Reports.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/src/pages/Sales.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/pages/Sales.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/src/pages/Settings.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/pages/Settings.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/src/pages/Suppliers.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/pages/Suppliers.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/src/pages/Users.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/pages/Users.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/src/pages/Warehouse.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/pages/Warehouse.tsx" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -55,25 +58,23 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent"><![CDATA[{
-  "keyToString": {
-    "ModuleVcsDetector.initialDetectionPerformed": "true",
-    "Python.main.executor": "Run",
-    "Python.mian.executor": "Run",
-    "RunOnceActivity.ShowReadmeOnStart": "true",
-    "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
-    "RunOnceActivity.git.unshallow": "true",
-    "git-widget-placeholder": "main",
-    "junie.onboarding.icon.badge.shown": "true",
-    "last_opened_file_path": "C:/Users/i.saidov/PycharmProjects/vegas",
-    "settings.editor.selected.configurable": "preferences.pluginManager",
-    "to.speed.mode.migration.done": "true"
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;ModuleVcsDetector.initialDetectionPerformed&quot;: &quot;true&quot;,
+    &quot;Python.main.executor&quot;: &quot;Run&quot;,
+    &quot;Python.mian.executor&quot;: &quot;Run&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;main&quot;,
+    &quot;junie.onboarding.icon.badge.shown&quot;: &quot;true&quot;,
+    &quot;last_opened_file_path&quot;: &quot;C:/Users/i.saidov/PycharmProjects/metall_basa&quot;,
+    &quot;settings.editor.selected.configurable&quot;: &quot;preferences.pluginManager&quot;,
+    &quot;to.speed.mode.migration.done&quot;: &quot;true&quot;
   }
-}]]></component>
+}</component>
   <component name="RecentsManager">
     <key name="CopyFile.RECENT_KEYS">
-      <recent name="C:\Users\i.saidov\PycharmProjects\vegas" />
-      <recent name="C:\Users\i.saidov\PycharmProjects\vegas\API\routers" />
       <recent name="C:\Users\i.saidov\PycharmProjects\metall_basa" />
       <recent name="C:\Users\i.saidov\PycharmProjects\metall_basa\frontend\public" />
       <recent name="C:\Users\i.saidov\PycharmProjects\metall_basa\api" />

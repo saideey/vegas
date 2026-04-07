@@ -232,626 +232,390 @@ export default function SettingsPage() {
   const quickRates = [12500, 12600, 12700, 12800, 12900, 13000]
 
   return (
-    <div className="space-y-4 lg:space-y-6">
-      {/* Header */}
-      <div className="flex items-center gap-2 lg:gap-3">
-        <SettingsIcon className="w-6 h-6 lg:w-8 lg:h-8 text-primary" />
-        <h1 className="text-xl lg:text-pos-xl font-bold">{t('settings')}</h1>
+    <div className="space-y-3">
+      {/* ── Header ── */}
+      <div className="flex items-center gap-2">
+        <SettingsIcon className="w-5 h-5 text-primary" />
+        <h1 className="text-lg font-bold">{t('settings')}</h1>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
-        {/* Exchange Rate Card */}
-        <Card>
-          <CardContent className="p-4 lg:p-6">
-            <div className="flex items-center gap-2 lg:gap-3 mb-4 lg:mb-6">
-              <div className="p-2 lg:p-3 bg-success/10 rounded-xl">
-                <DollarSign className="w-6 h-6 lg:w-8 lg:h-8 text-success" />
-              </div>
-              <div>
-                <h2 className="text-base lg:text-pos-lg font-bold">{t('usdRate')}</h2>
-                <p className="text-xs lg:text-sm text-text-secondary">1 USD = ? UZS</p>
-              </div>
+      <div className="space-y-3">
+
+        {/* ── Dollar kursi ── */}
+        <div className="bg-white rounded-2xl border border-border p-4 shadow-sm">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="p-2.5 bg-green-100 rounded-2xl"><DollarSign className="w-5 h-5 text-success" /></div>
+            <div>
+              <h2 className="text-sm font-bold">{t('usdRate')}</h2>
+              <p className="text-xs text-gray-400">1 USD = ? UZS</p>
             </div>
+          </div>
 
-            {isLoading ? (
-              <div className="flex items-center justify-center py-8">
-                <Loader2 className="w-8 h-8 animate-spin text-primary" />
-              </div>
-            ) : (
-              <div className="space-y-3 lg:space-y-4">
-                {/* Current Rate Display */}
-                <div className="bg-gray-50 p-3 lg:p-4 rounded-xl">
-                  <p className="text-xs lg:text-sm text-text-secondary mb-1">{t('usdRate')}:</p>
-                  <p className="text-lg lg:text-pos-xl font-bold text-success">
-                    1 $ = {formatNumber(exchangeRateData?.usd_rate || 12800)} UZS
-                  </p>
-                  {exchangeRateData?.updated_at && (
-                    <p className="text-[10px] lg:text-xs text-text-secondary mt-1">
-                      {t('date')}: {formatDateTimeTashkent(exchangeRateData.updated_at)}
-                    </p>
-                  )}
-                </div>
-
-                {/* Input */}
-                <div className="space-y-2">
-                  <label className="font-medium text-sm lg:text-base">{t('usdRate')}</label>
-                  <Input
-                    type="number"
-                    value={usdRate}
-                    onChange={(e) => setUsdRate(e.target.value)}
-                    placeholder="12800"
-                    className="text-base lg:text-pos-lg font-bold"
-                  />
-                </div>
-
-                {/* Quick Rate Buttons */}
-                <div className="grid grid-cols-3 gap-1.5 lg:gap-2">
-                  {quickRates.map((rate) => (
-                    <Button
-                      key={rate}
-                      variant={usdRate === rate.toString() ? 'primary' : 'outline'}
-                      size="sm"
-                      onClick={() => setUsdRate(rate.toString())}
-                      className="text-xs lg:text-sm"
-                    >
-                      {formatNumber(rate)}
-                    </Button>
-                  ))}
-                </div>
-
-                {/* Save Button */}
-                <Button
-                  variant="success"
-                  className="w-full"
-                  onClick={handleSaveExchangeRate}
-                  disabled={updateExchangeRate.isPending}
-                >
-                  {updateExchangeRate.isPending ? (
-                    <>
-                      <Loader2 className="w-4 h-4 lg:w-5 lg:h-5 mr-2 animate-spin" />
-                      {t('loading')}...
-                    </>
-                  ) : (
-                    <>
-                      <Save className="w-4 h-4 lg:w-5 lg:h-5 mr-2" />
-                      {t('save')}
-                    </>
-                  )}
-                </Button>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Company Info Card */}
-        <Card>
-          <CardContent className="p-4 lg:p-6">
-            <div className="flex items-center gap-2 lg:gap-3 mb-4 lg:mb-6">
-              <div className="p-2 lg:p-3 bg-primary/10 rounded-xl">
-                <SettingsIcon className="w-6 h-6 lg:w-8 lg:h-8 text-primary" />
-              </div>
-              <div>
-                <h2 className="text-base lg:text-pos-lg font-bold">{t('companyPhone')}</h2>
-                <p className="text-xs lg:text-sm text-text-secondary">{t('receiptSettings')}</p>
-              </div>
-            </div>
-
-            <div className="space-y-3 lg:space-y-4">
-              <div className="space-y-2">
-                <label className="font-medium text-sm lg:text-base">{t('phone')} 1</label>
-                <Input
-                  value={companyPhone1}
-                  onChange={(e) => setCompanyPhone1(e.target.value)}
-                  placeholder="+998 90 123 45 67"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <label className="font-medium text-sm lg:text-base">{t('phone')} 2</label>
-                <Input
-                  value={companyPhone2}
-                  onChange={(e) => setCompanyPhone2(e.target.value)}
-                  placeholder="+998 90 765 43 21"
-                />
-              </div>
-
-              <div className="bg-blue-50 p-3 rounded-lg text-xs text-blue-800">
-                <p>{t('receiptSettings')}</p>
-              </div>
-
-              <Button
-                variant="primary"
-                className="w-full"
-                onClick={() => updateCompanyPhones.mutate()}
-                disabled={updateCompanyPhones.isPending}
-              >
-                {updateCompanyPhones.isPending ? (
-                  <>
-                    <Loader2 className="w-4 h-4 lg:w-5 lg:h-5 mr-2 animate-spin" />
-                    {t('loading')}...
-                  </>
-                ) : (
-                  <>
-                    <Save className="w-4 h-4 lg:w-5 lg:h-5 mr-2" />
-                    {t('save')}
-                  </>
-                )}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Language Settings Card */}
-        <Card>
-          <CardContent className="p-4 lg:p-6">
-            <div className="flex items-center gap-2 lg:gap-3 mb-4 lg:mb-6">
-              <div className="p-2 lg:p-3 bg-purple-500/10 rounded-xl">
-                <Globe className="w-6 h-6 lg:w-8 lg:h-8 text-purple-500" />
-              </div>
-              <div>
-                <h2 className="text-base lg:text-pos-lg font-bold">{t('language')}</h2>
-                <p className="text-xs lg:text-sm text-text-secondary">{t('selectLanguage')}</p>
-              </div>
-            </div>
-
-            <LanguageSwitcher variant="full" />
-
-            <div className="mt-4 bg-purple-50 p-3 rounded-lg text-xs text-purple-800">
-              <p>
-                {language === 'ru'
-                  ? 'Выбранный язык будет сохранен в вашем профиле и загрузится при следующем входе.'
-                  : language === 'uz_cyrl'
-                  ? 'Танланган тил профилингизда сақланади ва кейинги сафар киришда юкланади.'
-                  : "Tanlangan til profilingizda saqlanadi va keyingi safar kirishda yuklanadi."
-                }
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Telegram Bot Settings Card */}
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="p-3 bg-blue-500/10 rounded-pos">
-                <Send className="w-8 h-8 text-blue-500" />
-              </div>
-              <div>
-                <h2 className="text-pos-lg font-bold">{t('telegramBot')}</h2>
-                <p className="text-sm text-text-secondary">{t('telegramNotifications')}</p>
-              </div>
-            </div>
-
-            {telegramLoading ? (
-              <div className="flex items-center justify-center py-8">
-                <Loader2 className="w-8 h-8 animate-spin text-primary" />
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {/* Info */}
-                <div className="bg-blue-50 p-4 rounded-pos text-sm">
-                  <p className="font-medium text-blue-800 mb-2">📱 {t('telegramBot')}</p>
-                  <ul className="text-blue-700 space-y-1 text-xs">
-                    <li>• VIP {t('customers').toLowerCase()} → {t('telegramNotifications')}</li>
-                    <li>• {t('payment')} → {t('telegramNotifications')}</li>
-                    <li>• Excel {t('export').toLowerCase()}</li>
-                  </ul>
-                </div>
-
-                {/* Director IDs List */}
-                <div className="space-y-2">
-                  <label className="font-medium">{t('telegramDirectorIds')}</label>
-                  <p className="text-xs text-text-secondary mb-2">
-                    {t('telegramNotifications')}
-                  </p>
-
-                  {(telegramData?.data?.telegram_ids || []).length === 0 ? (
-                    <p className="text-sm text-text-secondary bg-gray-50 p-3 rounded-pos">
-                      Hali hech qanday ID qo'shilmagan
-                    </p>
-                  ) : (
-                    <div className="space-y-2">
-                      {telegramData?.data?.telegram_ids.map((id: string) => (
-                        <div key={id} className="flex items-center gap-2 bg-gray-50 p-3 rounded-pos">
-                          <span className="flex-1 font-mono text-sm">{id}</span>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleTestTelegram(id)}
-                            disabled={testingId === id}
-                          >
-                            {testingId === id ? (
-                              <Loader2 className="w-4 h-4 animate-spin" />
-                            ) : (
-                              <Send className="w-4 h-4" />
-                            )}
-                          </Button>
-                          <Button
-                            variant="danger"
-                            size="sm"
-                            onClick={() => handleRemoveDirectorId(id)}
-                            disabled={updateDirectorIds.isPending}
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                {/* Add New ID */}
-                <div className="flex gap-2">
-                  <Input
-                    value={newDirectorId}
-                    onChange={(e) => setNewDirectorId(e.target.value)}
-                    placeholder="Telegram ID kiriting (masalan: 123456789)"
-                    className="flex-1"
-                  />
-                  <Button
-                    variant="primary"
-                    onClick={handleAddDirectorId}
-                    disabled={updateDirectorIds.isPending}
-                  >
-                    {updateDirectorIds.isPending ? (
-                      <Loader2 className="w-5 h-5 animate-spin" />
-                    ) : (
-                      <Plus className="w-5 h-5" />
-                    )}
-                  </Button>
-                </div>
-
-                {/* Help */}
-                <div className="bg-gray-50 p-3 rounded-pos text-xs text-text-secondary">
-                  <p className="font-medium mb-1">{t('telegramHowToFind')}</p>
-                  <p>1. @userinfobot</p>
-                  <p>2. /start</p>
-                  <p>3. ID</p>
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Telegram Group Daily Report Card */}
-        <Card>
-          <CardContent className="p-4 lg:p-6">
-            <div className="flex items-center gap-2 lg:gap-3 mb-4 lg:mb-6">
-              <div className="p-2 lg:p-3 bg-green-100 rounded-xl">
-                <MessageSquare className="w-6 h-6 lg:w-8 lg:h-8 text-green-600" />
-              </div>
-              <div>
-                <h2 className="text-base lg:text-pos-lg font-bold">{t('dailyReport')}</h2>
-                <p className="text-xs lg:text-sm text-text-secondary">{t('telegramGroupReport')}</p>
-              </div>
-            </div>
-
-            {groupSettingsLoading ? (
-              <div className="flex items-center justify-center py-8">
-                <Loader2 className="w-8 h-8 animate-spin text-primary" />
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {/* Group Chat ID */}
-                <div className="space-y-2">
-                  <label className="font-medium text-sm">{t('groupChatId')}</label>
-                  <Input
-                    type="text"
-                    value={groupChatId}
-                    onChange={(e) => setGroupChatId(e.target.value)}
-                    placeholder="-1001234567890"
-                    className="font-mono"
-                  />
-                  <p className="text-xs text-text-secondary">
-                    @RawDataBot
-                  </p>
-                </div>
-
-                {/* Report Time */}
-                <div className="space-y-2">
-                  <label className="font-medium text-sm flex items-center gap-2">
-                    <Clock className="w-4 h-4" />
-                    {t('reportTime')}
-                  </label>
-                  <div className="flex gap-2 items-center">
-                    <select
-                      value={reportTime.split(':')[0] || '19'}
-                      onChange={(e) => {
-                        const minute = reportTime.split(':')[1] || '00'
-                        setReportTime(`${e.target.value}:${minute}`)
-                      }}
-                      className="w-20 px-3 py-2 border border-border rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-primary"
-                    >
-                      {Array.from({length: 24}, (_, i) => i).map(h => (
-                        <option key={h} value={h.toString().padStart(2, '0')}>
-                          {h.toString().padStart(2, '0')}
-                        </option>
-                      ))}
-                    </select>
-                    <span className="text-xl font-bold">:</span>
-                    <select
-                      value={reportTime.split(':')[1] || '00'}
-                      onChange={(e) => {
-                        const hour = reportTime.split(':')[0] || '19'
-                        setReportTime(`${hour}:${e.target.value}`)
-                      }}
-                      className="w-20 px-3 py-2 border border-border rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-primary"
-                    >
-                      {['00', '15', '30', '45'].map(m => (
-                        <option key={m} value={m}>{m}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <p className="text-xs text-text-secondary">
-                    {t('reportTimeHint')}
-                  </p>
-                </div>
-
-                {/* Enable/Disable */}
-                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                  <div>
-                    <p className="font-medium">{t('autoSend')}</p>
-                    <p className="text-xs text-text-secondary">{t('dailyAt')}</p>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={reportEnabled}
-                    onChange={(e) => setReportEnabled(e.target.checked)}
-                    className="w-5 h-5 rounded border-border text-primary focus:ring-primary"
-                  />
-                </div>
-
-                {/* Save Button */}
-                <Button
-                  variant="primary"
-                  className="w-full"
-                  onClick={() => {
-                    if (!groupChatId.trim()) {
-                      toast.error(t('enterGroupChatId'))
-                      return
-                    }
-                    updateGroupSettings.mutate({
-                      group_chat_id: groupChatId.trim(),
-                      report_time: reportTime,
-                      is_enabled: reportEnabled
-                    })
-                  }}
-                  disabled={updateGroupSettings.isLoading}
-                >
-                  {updateGroupSettings.isLoading ? (
-                    <Loader2 className="w-5 h-5 animate-spin mr-2" />
-                  ) : (
-                    <Save className="w-5 h-5 mr-2" />
-                  )}
-                  {t('save')}
-                </Button>
-
-                {/* Divider */}
-                <div className="border-t border-border pt-4">
-                  <p className="text-sm font-medium mb-3">{t('test')}</p>
-
-                  {/* Send Now Button */}
-                  <Button
-                    variant="secondary"
-                    className="w-full bg-green-50 hover:bg-green-100 text-green-700 border-green-200"
-                    onClick={() => {
-                      if (!groupChatId.trim()) {
-                        toast.error(t('enterGroupChatId'))
-                        return
-                      }
-                      setSendingReport(true)
-                      sendDailyReport.mutate()
-                    }}
-                    disabled={sendingReport || !groupChatId.trim()}
-                  >
-                    {sendingReport ? (
-                      <Loader2 className="w-5 h-5 animate-spin mr-2" />
-                    ) : (
-                      <Send className="w-5 h-5 mr-2" />
-                    )}
-                    {t('sendNow')}
-                  </Button>
-                  <p className="text-xs text-text-secondary mt-2 text-center">
-                    {t('dailyReport')}
-                  </p>
-                </div>
-
-                {/* Help */}
-                <div className="bg-blue-50 p-3 rounded-lg text-xs text-blue-700">
-                  <p className="font-medium mb-1">📊 {t('dailyReport')}:</p>
-                  <ul className="list-disc list-inside space-y-0.5">
-                    <li>{t('todaySales')}</li>
-                    <li>{t('cash')}, {t('card')}, {t('transfer')}</li>
-                    <li>{t('sellerReport')}</li>
-                    <li>{t('debt')}</li>
-                    <li>{t('lowStock')}</li>
-                  </ul>
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* System Info Card */}
-        <Card>
-          <CardContent className="p-6">
-            <h2 className="text-pos-lg font-bold mb-4">{t('generalSettings')}</h2>
-
+          {isLoading ? (
+            <div className="flex items-center justify-center py-8"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>
+          ) : (
             <div className="space-y-3">
-              <div className="flex justify-between py-2 border-b border-border">
-                <span className="text-text-secondary">{t('version')}</span>
-                <Badge variant="primary">1.0.0</Badge>
+              {/* Current rate */}
+              <div className="bg-green-50 border border-green-100 rounded-2xl p-3 flex items-center justify-between">
+                <span className="text-xs text-gray-500">{t('usdRate')}</span>
+                <div className="text-right">
+                  <p className="text-base font-bold text-success">1$ = {formatNumber(exchangeRateData?.usd_rate || 12800)}</p>
+                  {exchangeRateData?.updated_at && (
+                    <p className="text-xs text-gray-400">{formatDateTimeTashkent(exchangeRateData.updated_at)}</p>
+                  )}
+                </div>
               </div>
-              <div className="flex justify-between py-2 border-b border-border">
-                <span className="text-text-secondary">API</span>
-                <Badge variant="success">{t('active')}</Badge>
+              {/* Input */}
+              <div className="space-y-1.5">
+                <label className="text-sm font-semibold text-gray-700">Yangi kurs</label>
+                <Input type="number" value={usdRate} onChange={(e) => setUsdRate(e.target.value)} placeholder="12800" className="h-12 text-base font-bold text-center" />
               </div>
-              <div className="flex justify-between py-2 border-b border-border">
-                <span className="text-text-secondary">{t('database')}</span>
-                <Badge variant="success">PostgreSQL</Badge>
+              {/* Quick buttons */}
+              <div className="grid grid-cols-3 gap-2">
+                {quickRates.map((rate) => (
+                  <button key={rate}
+                    onClick={() => setUsdRate(rate.toString())}
+                    className={`h-10 rounded-xl text-sm font-semibold transition-all active:scale-95 ${usdRate === rate.toString() ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600'}`}>
+                    {formatNumber(rate)}
+                  </button>
+                ))}
               </div>
-              <div className="flex justify-between py-2">
-                <span className="text-text-secondary">{t('warehouse')}</span>
-                <Badge variant="secondary">{t('warehouseName')}</Badge>
-              </div>
+              {/* Save */}
+              <button onClick={handleSaveExchangeRate} disabled={updateExchangeRate.isPending}
+                className="w-full h-12 rounded-2xl bg-success text-white text-sm font-semibold disabled:opacity-60 active:scale-[0.98] flex items-center justify-center gap-2">
+                {updateExchangeRate.isPending ? <><Loader2 className="w-4 h-4 animate-spin" />Saqlanmoqda...</> : <><Save className="w-4 h-4" />{t('save')}</>}
+              </button>
             </div>
-          </CardContent>
-        </Card>
+          )}
+        </div>
 
-        {/* Database Backup Card */}
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-                <Database className="w-5 h-5 text-green-600" />
-              </div>
-              <div>
-                <h2 className="text-pos-lg font-bold">Ma'lumotlar Bazasi</h2>
-                <p className="text-sm text-text-secondary">Backup yuklab olish</p>
-              </div>
+        {/* ── Kompaniya telefon ── */}
+        <div className="bg-white rounded-2xl border border-border p-4 shadow-sm">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="p-2.5 bg-primary/10 rounded-2xl"><SettingsIcon className="w-5 h-5 text-primary" /></div>
+            <div>
+              <h2 className="text-sm font-bold">{t('companyPhone')}</h2>
+              <p className="text-xs text-gray-400">{t('receiptSettings')}</p>
             </div>
+          </div>
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <label className="text-sm font-semibold text-gray-700">{t('phone')} 1</label>
+              <Input value={companyPhone1} onChange={(e) => setCompanyPhone1(e.target.value)} placeholder="+998 90 123 45 67" className="h-11" />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-sm font-semibold text-gray-700">{t('phone')} 2</label>
+              <Input value={companyPhone2} onChange={(e) => setCompanyPhone2(e.target.value)} placeholder="+998 90 765 43 21" className="h-11" />
+            </div>
+            <div className="bg-blue-50 border border-blue-100 rounded-xl px-3 py-2 text-xs text-blue-700">{t('receiptSettings')}</div>
+            <button onClick={() => updateCompanyPhones.mutate()} disabled={updateCompanyPhones.isPending}
+              className="w-full h-12 rounded-2xl bg-primary text-white text-sm font-semibold disabled:opacity-60 active:scale-[0.98] flex items-center justify-center gap-2">
+              {updateCompanyPhones.isPending ? <><Loader2 className="w-4 h-4 animate-spin" />Saqlanmoqda...</> : <><Save className="w-4 h-4" />{t('save')}</>}
+            </button>
+          </div>
+        </div>
 
-            <div className="space-y-4">
-              <div className="bg-blue-50 p-4 rounded-lg">
-                <p className="text-sm text-blue-700 mb-2">
-                  <strong>📦 Backup nima?</strong>
-                </p>
-                <ul className="text-xs text-blue-600 space-y-1 list-disc list-inside">
-                  <li>Barcha tovarlar va kategoriyalar</li>
-                  <li>Barcha sotuvlar va cheklar</li>
-                  <li>Barcha mijozlar va qarzdorlar</li>
-                  <li>Ombor harakatlari</li>
-                  <li>Foydalanuvchilar</li>
-                  <li>Sozlamalar</li>
-                </ul>
+        {/* ── Til ── */}
+        <div className="bg-white rounded-2xl border border-border p-4 shadow-sm">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="p-2.5 bg-purple-100 rounded-2xl"><Globe className="w-5 h-5 text-purple-600" /></div>
+            <div>
+              <h2 className="text-sm font-bold">{t('language')}</h2>
+              <p className="text-xs text-gray-400">{t('selectLanguage')}</p>
+            </div>
+          </div>
+          <LanguageSwitcher variant="full" />
+          <div className="mt-3 bg-purple-50 border border-purple-100 rounded-xl px-3 py-2 text-xs text-purple-700">
+            {language === 'ru'
+              ? 'Выбранный язык будет сохранен в вашем профиле.'
+              : language === 'uz_cyrl'
+              ? 'Танланган тил профилингизда сақланади.'
+              : "Tanlangan til profilingizda saqlanadi."}
+          </div>
+        </div>
+
+        {/* ── Telegram Bot ── */}
+        <div className="bg-white rounded-2xl border border-border p-4 shadow-sm">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="p-2.5 bg-blue-100 rounded-2xl"><Send className="w-5 h-5 text-blue-600" /></div>
+            <div>
+              <h2 className="text-sm font-bold">{t('telegramBot')}</h2>
+              <p className="text-xs text-gray-400">{t('telegramNotifications')}</p>
+            </div>
+          </div>
+
+          {telegramLoading ? (
+            <div className="flex items-center justify-center py-8"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>
+          ) : (
+            <div className="space-y-3">
+              {/* Info */}
+              <div className="bg-blue-50 border border-blue-100 rounded-xl p-3 text-xs text-blue-700 space-y-1">
+                <p className="font-semibold">📱 {t('telegramBot')}</p>
+                <p>• VIP mijozlar va to'lovlar uchun bildirishnomalar</p>
+                <p>• Excel hisobotlarni bot orqali yuborish</p>
               </div>
 
-              <div className="bg-yellow-50 p-3 rounded-lg">
-                <p className="text-xs text-yellow-700">
-                  ⚠️ <strong>Maslahat:</strong> Har kuni ish yakunida backup oling va xavfsiz joyda saqlang.
-                </p>
-              </div>
-
-              <Button
-                variant="primary"
-                className="w-full bg-green-600 hover:bg-green-700"
-                onClick={async () => {
-                  setDownloadingBackup(true)
-                  try {
-                    const response = await api.get('/settings/database/backup', {
-                      responseType: 'blob'
-                    })
-
-                    // Create download link
-                    const url = window.URL.createObjectURL(new Blob([response.data]))
-                    const link = document.createElement('a')
-                    link.href = url
-
-                    // Get filename from header or generate
-                    const contentDisposition = response.headers['content-disposition']
-                    let filename = `${new Date().toLocaleDateString('ru-RU').replace(/\//g, '.')}.sql`
-                    if (contentDisposition) {
-                      const match = contentDisposition.match(/filename=(.+)/)
-                      if (match) filename = match[1]
-                    }
-
-                    link.setAttribute('download', filename)
-                    document.body.appendChild(link)
-                    link.click()
-                    link.remove()
-                    window.URL.revokeObjectURL(url)
-
-                    toast.success(`Backup yuklandi: ${filename}`)
-                  } catch (error: any) {
-                    console.error('Backup error:', error)
-                    toast.error(error.response?.data?.detail || 'Backup yuklab olishda xatolik')
-                  } finally {
-                    setDownloadingBackup(false)
-                  }
-                }}
-                disabled={downloadingBackup}
-              >
-                {downloadingBackup ? (
-                  <>
-                    <Loader2 className="w-5 h-5 animate-spin mr-2" />
-                    Yuklanmoqda...
-                  </>
+              {/* IDs list */}
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-gray-700">{t('telegramDirectorIds')}</label>
+                {(telegramData?.data?.telegram_ids || []).length === 0 ? (
+                  <div className="bg-gray-50 border border-border rounded-xl px-3 py-3 text-xs text-gray-400 text-center">
+                    Hali ID qo'shilmagan
+                  </div>
                 ) : (
-                  <>
-                    <Download className="w-5 h-5 mr-2" />
-                    Backup Yuklab Olish
-                  </>
+                  <div className="space-y-2">
+                    {telegramData?.data?.telegram_ids.map((id: string) => (
+                      <div key={id} className="flex items-center gap-2 bg-gray-50 border border-border rounded-xl px-3 py-2">
+                        <code className="flex-1 text-sm font-mono">{id}</code>
+                        <button onClick={() => handleTestTelegram(id)} disabled={testingId === id}
+                          className="w-8 h-8 flex items-center justify-center rounded-xl border border-blue-200 text-blue-500 active:bg-blue-50 disabled:opacity-40">
+                          {testingId === id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+                        </button>
+                        <button onClick={() => handleRemoveDirectorId(id)} disabled={updateDirectorIds.isPending}
+                          className="w-8 h-8 flex items-center justify-center rounded-xl border border-red-200 text-danger active:bg-red-50 disabled:opacity-40">
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
                 )}
-              </Button>
+              </div>
 
-              <p className="text-xs text-center text-text-secondary">
-                Fayl nomi: {new Date().toLocaleDateString('ru-RU').replace(/\//g, '.')}.sql
-              </p>
+              {/* Add ID */}
+              <div className="flex gap-2">
+                <Input value={newDirectorId} onChange={(e) => setNewDirectorId(e.target.value)}
+                  placeholder="Telegram ID (masalan: 123456789)" className="flex-1 h-11" />
+                <button onClick={handleAddDirectorId} disabled={updateDirectorIds.isPending}
+                  className="w-11 h-11 flex items-center justify-center rounded-xl bg-primary text-white active:scale-95 disabled:opacity-50">
+                  {updateDirectorIds.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+                </button>
+              </div>
+
+              {/* Help */}
+              <div className="bg-gray-50 border border-border rounded-xl px-3 py-2 text-xs text-gray-500 space-y-0.5">
+                <p className="font-semibold text-gray-600">{t('telegramHowToFind')}</p>
+                <p>1. @userinfobot botiga yozing</p>
+                <p>2. /start bosing</p>
+                <p>3. Chiqgan ID ni ko'chiring</p>
+              </div>
             </div>
-          </CardContent>
-        </Card>
-
-        {/* Printers Settings - Full Width */}
-        <div className="lg:col-span-2">
-          <PrintersSettings />
+          )}
         </div>
 
-        {/* Receipt Design Settings - Full Width */}
-        <div className="lg:col-span-2">
-          <ReceiptSettings />
+        {/* ── Kunlik hisobot (Telegram guruh) ── */}
+        <div className="bg-white rounded-2xl border border-border p-4 shadow-sm">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="p-2.5 bg-green-100 rounded-2xl"><MessageSquare className="w-5 h-5 text-green-600" /></div>
+            <div>
+              <h2 className="text-sm font-bold">{t('dailyReport')}</h2>
+              <p className="text-xs text-gray-400">{t('telegramGroupReport')}</p>
+            </div>
+          </div>
+
+          {groupSettingsLoading ? (
+            <div className="flex items-center justify-center py-8"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>
+          ) : (
+            <div className="space-y-3">
+              {/* Group Chat ID */}
+              <div className="space-y-1.5">
+                <label className="text-sm font-semibold text-gray-700">{t('groupChatId')}</label>
+                <Input type="text" value={groupChatId} onChange={(e) => setGroupChatId(e.target.value)}
+                  placeholder="-1001234567890" className="h-11 font-mono" />
+                <p className="text-xs text-gray-400">ID ni @RawDataBot orqali toping</p>
+              </div>
+
+              {/* Report Time */}
+              <div className="space-y-1.5">
+                <label className="text-sm font-semibold text-gray-700 flex items-center gap-1.5">
+                  <Clock className="w-4 h-4" />{t('reportTime')}
+                </label>
+                <div className="flex items-center gap-3 bg-gray-50 border border-border rounded-2xl px-4 py-3">
+                  <select value={reportTime.split(':')[0] || '19'}
+                    onChange={(e) => { const m = reportTime.split(':')[1] || '00'; setReportTime(`${e.target.value}:${m}`) }}
+                    className="h-10 px-3 border border-border rounded-xl bg-white text-base font-bold text-center focus:outline-none focus:border-primary">
+                    {Array.from({length: 24}, (_, i) => i).map(h => (
+                      <option key={h} value={h.toString().padStart(2, '0')}>{h.toString().padStart(2, '0')}</option>
+                    ))}
+                  </select>
+                  <span className="text-xl font-bold text-gray-400">:</span>
+                  <select value={reportTime.split(':')[1] || '00'}
+                    onChange={(e) => { const h = reportTime.split(':')[0] || '19'; setReportTime(`${h}:${e.target.value}`) }}
+                    className="h-10 px-3 border border-border rounded-xl bg-white text-base font-bold text-center focus:outline-none focus:border-primary">
+                    {['00', '15', '30', '45'].map(m => <option key={m} value={m}>{m}</option>)}
+                  </select>
+                  <span className="text-xs text-gray-400 ml-1">{t('reportTimeHint')}</span>
+                </div>
+              </div>
+
+              {/* Enable toggle */}
+              <label className="flex items-center justify-between p-3 bg-gray-50 border border-border rounded-2xl cursor-pointer">
+                <div>
+                  <p className="text-sm font-semibold">{t('autoSend')}</p>
+                  <p className="text-xs text-gray-400">{t('dailyAt')}</p>
+                </div>
+                <div className="relative">
+                  <input type="checkbox" checked={reportEnabled} onChange={(e) => setReportEnabled(e.target.checked)} className="sr-only peer" />
+                  <div className="w-11 h-6 bg-gray-200 rounded-full peer peer-checked:bg-primary peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all" />
+                </div>
+              </label>
+
+              {/* Save */}
+              <button onClick={() => {
+                if (!groupChatId.trim()) { toast.error(t('enterGroupChatId')); return }
+                updateGroupSettings.mutate({ group_chat_id: groupChatId.trim(), report_time: reportTime, is_enabled: reportEnabled })
+              }} disabled={updateGroupSettings.isLoading}
+                className="w-full h-12 rounded-2xl bg-primary text-white text-sm font-semibold disabled:opacity-60 active:scale-[0.98] flex items-center justify-center gap-2">
+                {updateGroupSettings.isLoading ? <><Loader2 className="w-4 h-4 animate-spin" />Saqlanmoqda...</> : <><Save className="w-4 h-4" />{t('save')}</>}
+              </button>
+
+              {/* Send now */}
+              <div className="border-t border-border pt-3 space-y-2">
+                <p className="text-xs font-semibold text-gray-500">{t('test')}</p>
+                <button onClick={() => {
+                  if (!groupChatId.trim()) { toast.error(t('enterGroupChatId')); return }
+                  setSendingReport(true); sendDailyReport.mutate()
+                }} disabled={sendingReport || !groupChatId.trim()}
+                  className="w-full h-11 rounded-2xl bg-green-50 border border-green-300 text-green-700 text-sm font-semibold disabled:opacity-50 active:scale-[0.98] flex items-center justify-center gap-2">
+                  {sendingReport ? <><Loader2 className="w-4 h-4 animate-spin" />Yuborilmoqda...</> : <><Send className="w-4 h-4" />{t('sendNow')}</>}
+                </button>
+              </div>
+
+              {/* Info */}
+              <div className="bg-blue-50 border border-blue-100 rounded-xl px-3 py-2 text-xs text-blue-700 space-y-0.5">
+                <p className="font-semibold">📊 {t('dailyReport')} o'z ichiga oladi:</p>
+                <p>• {t('todaySales')} — naqd, karta, o'tkazma</p>
+                <p>• {t('sellerReport')} va {t('debt')}</p>
+                <p>• {t('lowStock')}</p>
+              </div>
+            </div>
+          )}
         </div>
 
-        {/* Sales Settings Card */}
-        <Card>
-          <CardContent className="p-6">
-            <h2 className="text-pos-lg font-bold mb-4">{t('salesSettings')}</h2>
-
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium">{t('maxDiscount')}</p>
-                  <p className="text-sm text-text-secondary">{t('maxDiscountHint')}</p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Input
-                    type="number"
-                    defaultValue="20"
-                    className="w-20 text-center"
-                  />
-                  <span className="font-medium">%</span>
-                </div>
+        {/* ── Tizim ma'lumotlari ── */}
+        <div className="bg-white rounded-2xl border border-border p-4 shadow-sm">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="p-2.5 bg-gray-100 rounded-2xl"><SettingsIcon className="w-5 h-5 text-gray-500" /></div>
+            <h2 className="text-sm font-bold">{t('generalSettings')}</h2>
+          </div>
+          <div className="space-y-2">
+            {[
+              { label: t('version'),  value: '1.0.0',      variant: 'bg-blue-100 text-blue-700' },
+              { label: 'API',         value: t('active'),   variant: 'bg-green-100 text-green-700' },
+              { label: t('database'), value: 'PostgreSQL',  variant: 'bg-green-100 text-green-700' },
+              { label: t('warehouse'),value: t('warehouseName'), variant: 'bg-gray-100 text-gray-600' },
+            ].map(({ label, value, variant }) => (
+              <div key={label} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
+                <span className="text-sm text-gray-500">{label}</span>
+                <span className={`text-xs font-semibold px-2 py-0.5 rounded-lg ${variant}`}>{value}</span>
               </div>
+            ))}
+          </div>
+        </div>
 
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium">{t('onCredit')}</p>
-                  <p className="text-sm text-text-secondary">{t('allowDebtSales')}</p>
-                </div>
-                <input
-                  type="checkbox"
-                  defaultChecked
-                  className="w-5 h-5 rounded border-border text-primary focus:ring-primary"
-                />
-              </div>
-
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium">{t('print')}</p>
-                  <p className="text-sm text-text-secondary">{t('autoPrintReceipt')}</p>
-                </div>
-                <input
-                  type="checkbox"
-                  className="w-5 h-5 rounded border-border text-primary focus:ring-primary"
-                />
-              </div>
-
-              <Button variant="primary" className="w-full">
-                <Save className="w-5 h-5 mr-2" />
-                {t('save')}
-              </Button>
+        {/* ── Database Backup ── */}
+        <div className="bg-white rounded-2xl border border-border p-4 shadow-sm">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="p-2.5 bg-green-100 rounded-2xl"><Database className="w-5 h-5 text-green-600" /></div>
+            <div>
+              <h2 className="text-sm font-bold">Ma'lumotlar bazasi</h2>
+              <p className="text-xs text-gray-400">Backup yuklab olish</p>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+          <div className="space-y-3">
+            <div className="bg-blue-50 border border-blue-100 rounded-xl p-3 text-xs text-blue-700 space-y-0.5">
+              <p className="font-semibold">📦 Backup o'z ichiga oladi:</p>
+              <p>• Tovarlar, sotuvlar, mijozlar, ombor</p>
+              <p>• Foydalanuvchilar va sozlamalar</p>
+            </div>
+            <div className="bg-yellow-50 border border-yellow-200 rounded-xl px-3 py-2 text-xs text-yellow-700">
+              ⚠️ Har kuni ish yakunida backup oling va xavfsiz joyda saqlang.
+            </div>
+            <button
+              onClick={async () => {
+                setDownloadingBackup(true)
+                try {
+                  const response = await api.get('/settings/database/backup', { responseType: 'blob' })
+                  const url = window.URL.createObjectURL(new Blob([response.data]))
+                  const link = document.createElement('a')
+                  link.href = url
+                  const contentDisposition = response.headers['content-disposition']
+                  let filename = `${new Date().toLocaleDateString('ru-RU').replace(/\//g, '.')}.sql`
+                  if (contentDisposition) {
+                    const match = contentDisposition.match(/filename=(.+)/)
+                    if (match) filename = match[1]
+                  }
+                  link.setAttribute('download', filename)
+                  document.body.appendChild(link); link.click(); link.remove()
+                  window.URL.revokeObjectURL(url)
+                  toast.success(`Backup yuklandi: ${filename}`)
+                } catch (error: any) {
+                  toast.error(error.response?.data?.detail || 'Backup yuklab olishda xatolik')
+                } finally {
+                  setDownloadingBackup(false)
+                }
+              }}
+              disabled={downloadingBackup}
+              className="w-full h-12 rounded-2xl bg-green-600 text-white text-sm font-semibold disabled:opacity-60 active:scale-[0.98] flex items-center justify-center gap-2">
+              {downloadingBackup ? <><Loader2 className="w-4 h-4 animate-spin" />Yuklanmoqda...</> : <><Download className="w-4 h-4" />Backup Yuklab Olish</>}
+            </button>
+            <p className="text-xs text-center text-gray-400">
+              Fayl: {new Date().toLocaleDateString('ru-RU').replace(/\//g, '.')}.sql
+            </p>
+          </div>
+        </div>
+
+        {/* ── Printers – to'liq kenglik ── */}
+        <PrintersSettings />
+
+        {/* ── Chek dizayn – to'liq kenglik ── */}
+        <ReceiptSettings />
+
+        {/* ── Sotuv sozlamalari ── */}
+        <div className="bg-white rounded-2xl border border-border p-4 shadow-sm">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="p-2.5 bg-orange-100 rounded-2xl"><Save className="w-5 h-5 text-orange-600" /></div>
+            <h2 className="text-sm font-bold">{t('salesSettings')}</h2>
+          </div>
+          <div className="space-y-3">
+            {/* Max discount */}
+            <div className="flex items-center justify-between p-3 bg-gray-50 border border-border rounded-2xl">
+              <div className="flex-1 min-w-0 mr-3">
+                <p className="text-sm font-semibold">{t('maxDiscount')}</p>
+                <p className="text-xs text-gray-400">{t('maxDiscountHint')}</p>
+              </div>
+              <div className="flex items-center gap-1.5 flex-shrink-0">
+                <Input type="number" defaultValue="20" className="w-16 h-9 text-center text-sm font-bold" />
+                <span className="text-sm font-bold text-gray-500">%</span>
+              </div>
+            </div>
+            {/* Qarzga sotish */}
+            <label className="flex items-center justify-between p-3 bg-gray-50 border border-border rounded-2xl cursor-pointer">
+              <div>
+                <p className="text-sm font-semibold">{t('onCredit')}</p>
+                <p className="text-xs text-gray-400">{t('allowDebtSales')}</p>
+              </div>
+              <div className="relative">
+                <input type="checkbox" defaultChecked className="sr-only peer" />
+                <div className="w-11 h-6 bg-gray-200 rounded-full peer peer-checked:bg-primary peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all" />
+              </div>
+            </label>
+            {/* Auto print */}
+            <label className="flex items-center justify-between p-3 bg-gray-50 border border-border rounded-2xl cursor-pointer">
+              <div>
+                <p className="text-sm font-semibold">{t('print')}</p>
+                <p className="text-xs text-gray-400">{t('autoPrintReceipt')}</p>
+              </div>
+              <div className="relative">
+                <input type="checkbox" className="sr-only peer" />
+                <div className="w-11 h-6 bg-gray-200 rounded-full peer peer-checked:bg-primary peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all" />
+              </div>
+            </label>
+            <Button variant="primary" className="w-full">
+              <Save className="w-4 h-4 mr-2" />
+              {t('save')}
+            </Button>
+          </div>
+        </div>
       </div>
     </div>
   )

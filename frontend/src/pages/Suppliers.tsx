@@ -210,298 +210,611 @@ export default function SuppliersPage() {
   const openPay = (s: SupplierData) => { setSelected(s); rPay(); setPayDisplay(''); svPay('amount', s.current_debt); setPayDisplay(formatInputNumber(s.current_debt)); setShowPayDialog(true) }
 
   return (
-    <div className="p-4 md:p-6 space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+    <div className="space-y-3">
+
+      {/* ── Header ── */}
+      <div className="flex items-center justify-between gap-2">
         <div>
-          <h1 className="text-xl md:text-2xl font-bold flex items-center gap-2"><Truck className="w-6 h-6 text-blue-600" />Ta'minotchilar</h1>
-          <p className="text-xs md:text-sm text-gray-500 mt-1">Umumiy qarz: <span className="font-bold text-red-600">{formatMoney(totalDebt)}</span> <span className="text-gray-400">({suppliers.length} ta)</span></p>
+          <h1 className="text-lg font-bold flex items-center gap-2">
+            <Truck className="w-5 h-5 text-blue-600" />
+            Ta'minotchilar
+          </h1>
+          <p className="text-xs text-gray-500 mt-0.5">
+            Qarz: <span className="font-bold text-red-600">{formatMoney(totalDebt)}</span>
+            <span className="text-gray-400 ml-1">({suppliers.length} ta)</span>
+          </p>
         </div>
-        <div className="flex gap-2 flex-wrap">
-          <Button variant="outline" size="sm" onClick={exportAllSuppliersExcel}><Download className="w-4 h-4 mr-1" />Excel</Button>
-          <Button variant={showDebtOnly ? "primary" : "outline"} size="sm" onClick={() => { setShowDebtOnly(!showDebtOnly); setPage(1) }}><DollarSign className="w-4 h-4 mr-1" />{showDebtOnly ? 'Barchasi' : 'Qarzdorlar'}</Button>
-          <Button size="sm" onClick={() => { setEditing(null); reset(); setInitDebtDisplay(''); setShowAdd(true) }}><Plus className="w-4 h-4 mr-1" />Qo'shish</Button>
+        <div className="flex items-center gap-2">
+          <button onClick={exportAllSuppliersExcel}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-green-400 text-green-700 text-sm font-semibold active:scale-95 transition-all">
+            <Download className="w-4 h-4" />
+            <span className="hidden sm:inline">Excel</span>
+          </button>
+          <button
+            onClick={() => { setShowDebtOnly(!showDebtOnly); setPage(1) }}
+            className={cn(
+              "flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold active:scale-95 transition-all",
+              showDebtOnly
+                ? "bg-danger text-white"
+                : "border border-border text-gray-600"
+            )}>
+            <DollarSign className="w-4 h-4" />
+            <span className="hidden sm:inline">{showDebtOnly ? "Barchasi" : "Qarzdorlar"}</span>
+          </button>
+          <button
+            onClick={() => { setEditing(null); reset(); setInitDebtDisplay(''); setShowAdd(true) }}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-primary text-white text-sm font-semibold active:scale-95 transition-all">
+            <Plus className="w-4 h-4" />
+            Qo'shish
+          </button>
         </div>
       </div>
 
-      <div className="relative max-w-md">
+      {/* ── Search ── */}
+      <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-        <Input value={search} onChange={e => { setSearch(e.target.value); setPage(1) }} placeholder="Qidirish..." className="pl-10" />
+        <input
+          value={search}
+          onChange={e => { setSearch(e.target.value); setPage(1) }}
+          placeholder="Ta'minotchi qidirish..."
+          className="w-full pl-9 pr-4 h-11 border border-border rounded-2xl text-sm focus:outline-none focus:border-primary bg-white shadow-sm"
+        />
       </div>
 
-      {isLoading ? <div className="flex justify-center py-12"><Loader2 className="w-8 h-8 animate-spin" /></div> : (
-        <div className="grid gap-3">
-          {suppliers.length === 0 ? (
-            <Card><CardContent className="p-8 text-center text-gray-400"><Truck className="w-10 h-10 mx-auto mb-3 opacity-50" /><p>Ta'minotchilar topilmadi</p></CardContent></Card>
-          ) : suppliers.map(s => (
-            <Card key={s.id} className="hover:shadow-md transition-shadow">
-              <CardContent className="p-3 md:p-4">
-                <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
-                  <div className="flex items-start gap-3 min-w-0 flex-1">
-                    <div className="p-2 bg-blue-100 rounded-lg shrink-0 hidden sm:block"><Truck className="w-5 h-5 text-blue-600" /></div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <h3 className="font-bold text-sm md:text-base">{s.name}</h3>
-                        {s.company_name && <span className="text-xs text-gray-400">({s.company_name})</span>}
-                      </div>
-                      <div className="flex flex-wrap gap-2 mt-1 text-xs text-gray-400">
-                        {s.phone && <span className="flex items-center gap-1"><Phone className="w-3 h-3" />{s.phone}</span>}
-                        {s.city && <span className="flex items-center gap-1"><MapPin className="w-3 h-3" />{s.city}</span>}
-                        {s.contact_person && <span className="flex items-center gap-1"><Building className="w-3 h-3" />{s.contact_person}</span>}
-                      </div>
-                      {s.notes && (
-                        <div className="mt-2 p-2 bg-yellow-50 rounded border border-yellow-100">
-                          <p className="text-xs text-gray-600 leading-relaxed">{s.notes}</p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-start gap-2 shrink-0">
-                    {s.current_debt > 0 && (
-                      <div className="text-right">
-                        <p className="text-[10px] text-gray-400 leading-none">Qarz:</p>
-                        <p className="font-bold text-base md:text-lg text-red-600">{formatMoney(s.current_debt)}</p>
-                      </div>
+      {/* ── Supplier cards ── */}
+      {isLoading ? (
+        <div className="flex justify-center py-16"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>
+      ) : suppliers.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-16 text-gray-400">
+          <Truck className="w-12 h-12 mb-3 opacity-30" />
+          <p className="text-sm">Ta'minotchilar topilmadi</p>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {suppliers.map(s => (
+            <div key={s.id}
+              className={cn(
+                "bg-white rounded-2xl border shadow-sm p-3 transition-all",
+                s.current_debt > 0 ? "border-l-4 border-l-danger border-border" : "border-border"
+              )}>
+              {/* Row 1: name + debt + actions */}
+              <div className="flex items-start gap-3">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="font-bold text-sm">{s.name}</span>
+                    {s.company_name && (
+                      <span className="text-xs text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded-lg">{s.company_name}</span>
                     )}
-                    <div className="flex gap-1">
-                      {s.current_debt > 0 && <Button variant="success" size="sm" onClick={() => openPay(s)} className="h-8 text-xs"><Banknote className="w-3.5 h-3.5 mr-1" /><span className="hidden sm:inline">To'lov</span></Button>}
-                      <Button variant="outline" size="sm" onClick={() => openDebt(s)} className="h-8 text-orange-600 border-orange-300"><Plus className="w-3.5 h-3.5" /></Button>
-                      <Button variant="outline" size="sm" onClick={() => openEdit(s)} className="h-8"><Edit className="w-3.5 h-3.5" /></Button>
-                      <Button variant="outline" size="sm" onClick={() => openDetail(s)} className="h-8"><Eye className="w-3.5 h-3.5" /></Button>
-                      <Button variant="outline" size="sm" onClick={() => { if (confirm("Arxivlash?")) deleteMut.mutate(s.id) }} className="h-8 text-red-500"><Trash2 className="w-3.5 h-3.5" /></Button>
-                    </div>
                   </div>
+                  <div className="flex flex-wrap gap-2 mt-1">
+                    {s.phone && (
+                      <a href={`tel:${s.phone}`}
+                        className="flex items-center gap-1 text-xs text-blue-600">
+                        <Phone className="w-3 h-3" />{s.phone}
+                      </a>
+                    )}
+                    {s.city && (
+                      <span className="flex items-center gap-1 text-xs text-gray-400">
+                        <MapPin className="w-3 h-3" />{s.city}
+                      </span>
+                    )}
+                    {s.contact_person && (
+                      <span className="flex items-center gap-1 text-xs text-gray-400">
+                        <Building className="w-3 h-3" />{s.contact_person}
+                      </span>
+                    )}
+                  </div>
+                  {s.notes && (
+                    <p className="text-xs text-gray-500 mt-1.5 bg-yellow-50 border border-yellow-100 rounded-xl px-2 py-1 leading-relaxed line-clamp-2">
+                      {s.notes}
+                    </p>
+                  )}
                 </div>
-              </CardContent>
-            </Card>
+                {/* Debt badge */}
+                {s.current_debt > 0 && (
+                  <div className="text-right flex-shrink-0">
+                    <p className="text-[10px] text-gray-400">Qarz</p>
+                    <p className="font-bold text-sm text-red-600 whitespace-nowrap">{formatMoney(s.current_debt)}</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Row 2: action buttons */}
+              <div className="flex items-center gap-1.5 mt-2.5 pt-2.5 border-t border-gray-100">
+                {s.current_debt > 0 && (
+                  <button onClick={() => openPay(s)}
+                    className="flex-1 flex items-center justify-center gap-1.5 h-9 rounded-xl bg-success text-white text-xs font-semibold active:scale-95">
+                    <Banknote className="w-3.5 h-3.5" /> To'lov
+                  </button>
+                )}
+                <button onClick={() => openDebt(s)}
+                  className="flex-1 flex items-center justify-center gap-1.5 h-9 rounded-xl border border-orange-300 text-orange-600 text-xs font-semibold active:scale-95">
+                  <Plus className="w-3.5 h-3.5" /> Qarz
+                </button>
+                <button onClick={() => openDetail(s)}
+                  className="flex-1 flex items-center justify-center gap-1.5 h-9 rounded-xl border border-border text-gray-600 text-xs font-semibold active:scale-95">
+                  <Eye className="w-3.5 h-3.5" /> Ko'rish
+                </button>
+                <button onClick={() => openEdit(s)}
+                  className="w-9 h-9 flex items-center justify-center rounded-xl border border-border text-gray-500 active:bg-gray-100">
+                  <Edit className="w-3.5 h-3.5" />
+                </button>
+                <button onClick={() => { if (confirm("Arxivlash?")) deleteMut.mutate(s.id) }}
+                  className="w-9 h-9 flex items-center justify-center rounded-xl border border-red-200 text-danger active:bg-red-50">
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
           ))}
         </div>
       )}
 
       {/* Add/Edit Dialog */}
       <Dialog open={showAdd} onOpenChange={setShowAdd}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-          <DialogHeader><DialogTitle>{editing ? "Ta'minotchini tahrirlash" : "Yangi ta'minotchi"}</DialogTitle></DialogHeader>
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-3">
-            <div className="grid grid-cols-2 gap-3">
-              <div><label className="text-sm font-medium">Nomi *</label><Input {...register('name', { required: true })} /></div>
-              <div><label className="text-sm font-medium">Kompaniya</label><Input {...register('company_name')} /></div>
+        <DialogContent className="w-full max-w-lg h-[100dvh] sm:h-auto sm:max-h-[90vh] flex flex-col p-0 gap-0 rounded-none sm:rounded-2xl">
+          {/* Header */}
+          <div className="flex-shrink-0 px-4 pt-4 pb-3 border-b border-border">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 bg-blue-100 rounded-2xl">
+                <Truck className="w-4 h-4 text-blue-600" />
+              </div>
+              <h2 className="text-base font-bold">
+                {editing ? "Ta'minotchini tahrirlash" : "Yangi ta'minotchi"}
+              </h2>
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div><label className="text-sm font-medium">Kontakt shaxs</label><Input {...register('contact_person')} /></div>
-              <div><label className="text-sm font-medium">Telefon</label><Input {...register('phone')} /></div>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div><label className="text-sm font-medium">2-Telefon</label><Input {...register('phone_secondary')} /></div>
-              <div><label className="text-sm font-medium">Email</label><Input {...register('email')} /></div>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div><label className="text-sm font-medium">Manzil</label><Input {...register('address')} /></div>
-              <div><label className="text-sm font-medium">Shahar</label><Input {...register('city')} /></div>
-            </div>
-            <div className="grid grid-cols-3 gap-3">
-              <div><label className="text-sm font-medium">INN</label><Input {...register('inn')} /></div>
-              <div><label className="text-sm font-medium">Bank hisob</label><Input {...register('bank_account')} /></div>
-              <div><label className="text-sm font-medium">MFO</label><Input {...register('mfo')} /></div>
-            </div>
-            <div><label className="text-sm font-medium">Bank nomi</label><Input {...register('bank_name')} /></div>
-            <div><label className="text-sm font-medium">Izoh</label><textarea {...register('notes')} rows={2} className="w-full px-3 py-2 text-sm border rounded-lg" /></div>
+          </div>
 
-            {!editing && (
-              <div className="border-t pt-3 space-y-3">
-                <h4 className="text-sm font-semibold text-orange-600">Boshlang'ich qarz (ixtiyoriy)</h4>
+          {/* Scrollable body */}
+          <div className="flex-1 overflow-y-auto p-4">
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+
+              {/* Asosiy ma'lumotlar */}
+              <div className="space-y-3">
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Asosiy</p>
+                <div className="space-y-1.5">
+                  <label className="text-sm font-semibold text-gray-700">Nomi *</label>
+                  <Input {...register('name', { required: true })} placeholder="Ta'minotchi nomi" className="h-11" />
+                </div>
                 <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-sm font-medium">Qarz summasi</label>
-                    <input type="text" inputMode="numeric" value={initDebtDisplay}
-                      onChange={e => { const n = parseFloat(e.target.value.replace(/\s/g, '')) || 0; setInitDebtDisplay(n > 0 ? formatInputNumber(n) : ''); setValue('initial_debt', n) }}
-                      className="w-full h-10 px-3 border rounded-lg text-sm font-bold text-center text-orange-600" placeholder="0" />
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-semibold text-gray-700">Kompaniya</label>
+                    <Input {...register('company_name')} placeholder="OOO, MChJ..." className="h-11" />
                   </div>
-                  <div><label className="text-sm font-medium">Qarz izohi</label><Input {...register('initial_debt_note')} placeholder="Eski qarz..." /></div>
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-semibold text-gray-700">Kontakt shaxs</label>
+                    <Input {...register('contact_person')} placeholder="F.I.O" className="h-11" />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-semibold text-gray-700">Telefon</label>
+                    <Input {...register('phone')} placeholder="+998..." className="h-11" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-semibold text-gray-700">2-Telefon</label>
+                    <Input {...register('phone_secondary')} placeholder="+998..." className="h-11" />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-semibold text-gray-700">Shahar</label>
+                    <Input {...register('city')} placeholder="Toshkent" className="h-11" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-semibold text-gray-700">Email</label>
+                    <Input {...register('email')} placeholder="email@..." className="h-11" />
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-sm font-semibold text-gray-700">Manzil</label>
+                  <Input {...register('address')} placeholder="Ko'cha, uy..." className="h-11" />
                 </div>
               </div>
-            )}
 
-            <div className="flex gap-2 pt-2">
-              <Button type="button" variant="outline" className="flex-1" onClick={() => { setShowAdd(false); setEditing(null) }}>Bekor qilish</Button>
-              <Button type="submit" className="flex-1" disabled={createMut.isPending || updateMut.isPending}>
-                {(createMut.isPending || updateMut.isPending) ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-                {editing ? 'Saqlash' : 'Yaratish'}
-              </Button>
-            </div>
-          </form>
+              {/* Bank ma'lumotlari */}
+              <div className="space-y-3">
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Bank</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-semibold text-gray-700">INN</label>
+                    <Input {...register('inn')} placeholder="123456789" className="h-11" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-semibold text-gray-700">MFO</label>
+                    <Input {...register('mfo')} placeholder="01234" className="h-11" />
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-sm font-semibold text-gray-700">Hisob raqam</label>
+                  <Input {...register('bank_account')} placeholder="2020800..." className="h-11" />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-sm font-semibold text-gray-700">Bank nomi</label>
+                  <Input {...register('bank_name')} placeholder="Kapitalbank, Ipak yuli..." className="h-11" />
+                </div>
+              </div>
+
+              {/* Izoh */}
+              <div className="space-y-1.5">
+                <label className="text-sm font-semibold text-gray-700">Izoh</label>
+                <textarea {...register('notes')} rows={2}
+                  className="w-full px-3 py-2.5 text-sm border border-border rounded-2xl focus:outline-none focus:border-primary resize-none"
+                  placeholder="Qo'shimcha ma'lumot..." />
+              </div>
+
+              {/* Boshlang'ich qarz — faqat yangi ta'minotchi uchun */}
+              {!editing && (
+                <div className="bg-orange-50 border border-orange-200 rounded-2xl p-4 space-y-3">
+                  <p className="text-sm font-semibold text-orange-700">Boshlang'ich qarz (ixtiyoriy)</p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-medium text-gray-600">Qarz summasi</label>
+                      <input type="text" inputMode="numeric" value={initDebtDisplay}
+                        onChange={e => {
+                          const n = parseFloat(e.target.value.replace(/\s/g, '')) || 0
+                          setInitDebtDisplay(n > 0 ? formatInputNumber(n) : '')
+                          setValue('initial_debt', n)
+                        }}
+                        className="w-full h-11 px-3 border border-orange-300 rounded-xl text-sm font-bold text-center text-orange-600 focus:outline-none focus:border-orange-500 bg-white"
+                        placeholder="0" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-medium text-gray-600">Izoh</label>
+                      <Input {...register('initial_debt_note')} placeholder="Eski qarz sababi..." className="h-11" />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Buttons */}
+              <div className="flex gap-3 pt-1 pb-2">
+                <button type="button"
+                  onClick={() => { setShowAdd(false); setEditing(null) }}
+                  className="flex-1 h-12 rounded-2xl border-2 border-border text-sm font-semibold text-gray-600 active:bg-gray-50">
+                  Bekor
+                </button>
+                <button type="submit"
+                  disabled={createMut.isPending || updateMut.isPending}
+                  className="flex-1 h-12 rounded-2xl bg-primary text-white text-sm font-semibold disabled:opacity-60 active:scale-[0.98] flex items-center justify-center gap-2">
+                  {(createMut.isPending || updateMut.isPending)
+                    ? <><Loader2 className="w-4 h-4 animate-spin" />Saqlanmoqda...</>
+                    : editing ? "Saqlash" : "Yaratish"}
+                </button>
+              </div>
+            </form>
+          </div>
         </DialogContent>
       </Dialog>
 
       {/* Add Debt Dialog */}
       <Dialog open={showDebtDialog} onOpenChange={setShowDebtDialog}>
-        <DialogContent className="max-w-[380px]">
-          <DialogHeader><DialogTitle className="text-orange-600">Qarz qo'shish</DialogTitle></DialogHeader>
-          {selected && <div className="bg-orange-50 p-3 rounded-lg mb-3 text-center">
-            <p className="font-semibold">{selected.name}</p>
-            <p className="text-xs text-gray-500">Joriy qarz: <span className="font-bold text-red-600">{formatMoney(selected.current_debt)}</span></p>
-          </div>}
-          <form onSubmit={hDebt(d => addDebtMut.mutate(d))} className="space-y-3">
-            <div><label className="text-sm font-medium">Summa *</label>
-              <input type="text" inputMode="numeric" value={debtDisplay}
-                onChange={e => { const n = parseFloat(e.target.value.replace(/\s/g, '')) || 0; setDebtDisplay(n > 0 ? formatInputNumber(n) : ''); svDebt('amount', n) }}
-                className="w-full h-11 px-3 text-lg font-bold text-center border-2 border-orange-200 rounded-lg focus:border-orange-500 outline-none" />
+        <DialogContent className="w-full max-w-sm p-0 gap-0 rounded-2xl overflow-hidden">
+          <div className="p-4 space-y-4">
+            {/* Header */}
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 bg-orange-100 rounded-2xl">
+                <Plus className="w-5 h-5 text-orange-600" />
+              </div>
+              <div>
+                <h3 className="font-bold text-base">Qarz qo'shish</h3>
+                {selected && <p className="text-xs text-gray-500">{selected.name}</p>}
+              </div>
             </div>
-            <div><label className="text-sm font-medium">Izoh *</label>
-              <textarea {...regDebt('description', { required: true })} rows={2} className="w-full px-3 py-2 text-sm border rounded-lg" placeholder="Qarz sababi..." />
-            </div>
-            <div className="flex gap-2">
-              <Button type="button" variant="outline" className="flex-1" onClick={() => setShowDebtDialog(false)}>Bekor</Button>
-              <button type="submit" disabled={addDebtMut.isPending} className="flex-1 h-10 bg-orange-600 hover:bg-orange-700 text-white rounded-lg text-sm font-medium flex items-center justify-center gap-2">
-                {addDebtMut.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}Qo'shish
-              </button>
-            </div>
-          </form>
+
+            {/* Current debt info */}
+            {selected && (
+              <div className="bg-orange-50 border border-orange-200 rounded-2xl p-3 flex items-center justify-between">
+                <span className="text-xs text-gray-500">Joriy qarz:</span>
+                <span className="font-bold text-red-600">{formatMoney(selected.current_debt)}</span>
+              </div>
+            )}
+
+            <form onSubmit={hDebt(d => addDebtMut.mutate(d))} className="space-y-3">
+              {/* Amount */}
+              <div className="space-y-1.5">
+                <label className="text-sm font-semibold text-gray-700">Summa *</label>
+                <input type="text" inputMode="numeric" value={debtDisplay}
+                  onChange={e => {
+                    const n = parseFloat(e.target.value.replace(/\s/g, '')) || 0
+                    setDebtDisplay(n > 0 ? formatInputNumber(n) : '')
+                    svDebt('amount', n)
+                  }}
+                  className="w-full h-14 px-4 text-2xl font-bold text-center border-2 border-orange-200 rounded-2xl focus:border-orange-500 outline-none text-orange-600 bg-orange-50"
+                  placeholder="0" />
+              </div>
+              {/* Description */}
+              <div className="space-y-1.5">
+                <label className="text-sm font-semibold text-gray-700">Sabab *</label>
+                <textarea {...regDebt('description', { required: true })} rows={2}
+                  className="w-full px-3 py-2.5 text-sm border border-border rounded-2xl focus:outline-none focus:border-orange-400 resize-none"
+                  placeholder="Qarz sababi..." />
+              </div>
+              {/* Buttons */}
+              <div className="flex gap-3">
+                <button type="button" onClick={() => setShowDebtDialog(false)}
+                  className="flex-1 h-12 rounded-2xl border-2 border-border text-sm font-semibold text-gray-600 active:bg-gray-50">
+                  Bekor
+                </button>
+                <button type="submit" disabled={addDebtMut.isPending}
+                  className="flex-1 h-12 rounded-2xl bg-orange-500 text-white text-sm font-semibold disabled:opacity-60 active:scale-[0.98] flex items-center justify-center gap-2">
+                  {addDebtMut.isPending
+                    ? <><Loader2 className="w-4 h-4 animate-spin" />Qo'shilmoqda...</>
+                    : <><Plus className="w-4 h-4" />Qo'shish</>}
+                </button>
+              </div>
+            </form>
+          </div>
         </DialogContent>
       </Dialog>
 
       {/* Pay Debt Dialog */}
       <Dialog open={showPayDialog} onOpenChange={setShowPayDialog}>
-        <DialogContent className="max-w-[380px]">
-          <DialogHeader><DialogTitle className="text-green-600">To'lov qilish</DialogTitle></DialogHeader>
-          {selected && <div className="bg-red-50 p-3 rounded-lg mb-3 text-center">
-            <p className="font-semibold">{selected.name}</p>
-            <p className="text-lg font-bold text-red-600">{formatMoney(selected.current_debt)}</p>
-          </div>}
-          <form onSubmit={hPay(d => payMut.mutate(d))} className="space-y-3">
-            <div><label className="text-sm font-medium">Summa *</label>
-              <input type="text" inputMode="numeric" value={payDisplay}
-                onChange={e => { const n = parseFloat(e.target.value.replace(/\s/g, '')) || 0; setPayDisplay(n > 0 ? formatInputNumber(n) : ''); svPay('amount', n) }}
-                className="w-full h-11 px-3 text-lg font-bold text-center border-2 border-green-200 rounded-lg focus:border-green-500 outline-none" />
-            </div>
-            <div><label className="text-sm font-medium">To'lov turi</label>
-              <div className="grid grid-cols-3 gap-2">
-                {[{ v: 'cash', l: 'Naqd', i: Banknote }, { v: 'card', l: 'Karta', i: CreditCard }, { v: 'transfer', l: "O'tkazma", i: Building }].map(pt => (
-                  <label key={pt.v} className="cursor-pointer"><input type="radio" {...regPay('payment_type')} value={pt.v} className="sr-only peer" />
-                    <div className="flex flex-col items-center gap-1 p-2 border-2 rounded-lg peer-checked:border-green-500 peer-checked:bg-green-50"><pt.i className="w-4 h-4" /><span className="text-xs">{pt.l}</span></div>
-                  </label>
-                ))}
+        <DialogContent className="w-full max-w-sm p-0 gap-0 rounded-2xl overflow-hidden">
+          <div className="p-4 space-y-4">
+            {/* Header */}
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 bg-green-100 rounded-2xl">
+                <Banknote className="w-5 h-5 text-green-600" />
+              </div>
+              <div>
+                <h3 className="font-bold text-base">To'lov qilish</h3>
+                {selected && <p className="text-xs text-gray-500">{selected.name}</p>}
               </div>
             </div>
-            <div><label className="text-sm font-medium">Izoh</label><Input {...regPay('description')} placeholder="Izoh..." /></div>
-            <div className="flex gap-2">
-              <Button type="button" variant="outline" className="flex-1" onClick={() => setShowPayDialog(false)}>Bekor</Button>
-              <button type="submit" disabled={payMut.isPending} className="flex-1 h-10 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium flex items-center justify-center gap-2">
-                {payMut.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Banknote className="w-4 h-4" />}To'lash
-              </button>
-            </div>
-          </form>
+
+            {/* Current debt */}
+            {selected && (
+              <div className="bg-red-50 border border-red-200 rounded-2xl p-3 flex items-center justify-between">
+                <span className="text-xs text-gray-500">Qarz:</span>
+                <span className="text-lg font-bold text-red-600">{formatMoney(selected.current_debt)}</span>
+              </div>
+            )}
+
+            <form onSubmit={hPay(d => payMut.mutate(d))} className="space-y-3">
+              {/* Amount */}
+              <div className="space-y-1.5">
+                <label className="text-sm font-semibold text-gray-700">Summa *</label>
+                <input type="text" inputMode="numeric" value={payDisplay}
+                  onChange={e => {
+                    const n = parseFloat(e.target.value.replace(/\s/g, '')) || 0
+                    setPayDisplay(n > 0 ? formatInputNumber(n) : '')
+                    svPay('amount', n)
+                  }}
+                  className="w-full h-14 px-4 text-2xl font-bold text-center border-2 border-green-200 rounded-2xl focus:border-green-500 outline-none text-green-700 bg-green-50"
+                  placeholder="0" />
+              </div>
+              {/* Payment type */}
+              <div className="space-y-1.5">
+                <label className="text-sm font-semibold text-gray-700">To'lov turi</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {[
+                    { v: 'cash', l: "Naqd", i: Banknote },
+                    { v: 'card', l: "Karta", i: CreditCard },
+                    { v: 'transfer', l: "O'tkazma", i: Building }
+                  ].map(pt => (
+                    <label key={pt.v} className="cursor-pointer">
+                      <input type="radio" {...regPay('payment_type')} value={pt.v} className="sr-only peer" />
+                      <div className="flex flex-col items-center gap-1.5 p-3 border-2 border-border rounded-2xl peer-checked:border-green-500 peer-checked:bg-green-50 transition-all active:scale-95">
+                        <pt.i className="w-5 h-5" />
+                        <span className="text-xs font-medium">{pt.l}</span>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              </div>
+              {/* Note */}
+              <div className="space-y-1.5">
+                <label className="text-sm font-semibold text-gray-700">Izoh</label>
+                <Input {...regPay('description')} placeholder="Izoh..." className="h-11" />
+              </div>
+              {/* Buttons */}
+              <div className="flex gap-3">
+                <button type="button" onClick={() => setShowPayDialog(false)}
+                  className="flex-1 h-12 rounded-2xl border-2 border-border text-sm font-semibold text-gray-600 active:bg-gray-50">
+                  Bekor
+                </button>
+                <button type="submit" disabled={payMut.isPending}
+                  className="flex-1 h-12 rounded-2xl bg-success text-white text-sm font-semibold disabled:opacity-60 active:scale-[0.98] flex items-center justify-center gap-2">
+                  {payMut.isPending
+                    ? <><Loader2 className="w-4 h-4 animate-spin" />To'lanmoqda...</>
+                    : <><Banknote className="w-4 h-4" />To'lash</>}
+                </button>
+              </div>
+            </form>
+          </div>
         </DialogContent>
       </Dialog>
 
       {/* Detail Dialog */}
       <Dialog open={showDetail} onOpenChange={setShowDetail}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader><DialogTitle>Ta'minotchi ma'lumotlari</DialogTitle></DialogHeader>
-          {selected && (
-            <div className="space-y-4">
-              <div className="bg-gradient-to-r from-blue-50 to-blue-100/50 p-3 md:p-4 rounded-lg">
-                <div className="flex flex-col md:flex-row md:items-start justify-between gap-3">
-                  <div className="min-w-0 flex-1">
-                    <h3 className="text-lg font-bold">{selected.name}</h3>
-                    {selected.company_name && <p className="text-sm text-gray-600">{selected.company_name}</p>}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-3 text-sm">
-                      {selected.phone && <div className="flex items-center gap-2 text-gray-600"><Phone className="w-4 h-4 text-gray-400" />{selected.phone}</div>}
-                      {selected.phone_secondary && <div className="flex items-center gap-2 text-gray-600"><Phone className="w-4 h-4 text-gray-400" />{selected.phone_secondary}</div>}
-                      {selected.contact_person && <div className="flex items-center gap-2 text-gray-600"><Building className="w-4 h-4 text-gray-400" />{selected.contact_person}</div>}
-                      {selected.email && <div className="flex items-center gap-2 text-gray-600">📧 {selected.email}</div>}
-                      {selected.address && <div className="flex items-center gap-2 text-gray-600"><MapPin className="w-4 h-4 text-gray-400" />{selected.address}{selected.city ? `, ${selected.city}` : ''}</div>}
-                    </div>
-                    {(selected.inn || selected.bank_account) && (
-                      <div className="mt-3 p-2 bg-white/60 rounded-lg text-xs text-gray-500 space-y-1">
-                        {selected.inn && <div><span className="font-medium">INN:</span> {selected.inn}</div>}
-                        {selected.bank_account && <div><span className="font-medium">H/R:</span> {selected.bank_account}</div>}
-                        {selected.bank_name && <div><span className="font-medium">Bank:</span> {selected.bank_name} {selected.mfo ? `(MFO: ${selected.mfo})` : ''}</div>}
-                      </div>
-                    )}
-                    {selected.notes && (
-                      <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                        <p className="text-xs font-medium text-yellow-700 mb-1">📝 Izoh:</p>
-                        <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">{selected.notes}</p>
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex flex-row md:flex-col items-center md:items-end gap-3 md:gap-2 shrink-0">
-                    <div className="text-center md:text-right">
-                      <p className="text-xs text-gray-500">Joriy qarz:</p>
-                      <p className={cn("text-xl md:text-2xl font-bold", selected.current_debt > 0 ? "text-red-600" : "text-green-600")}>{formatMoney(selected.current_debt)}</p>
-                    </div>
-                    <div className="flex gap-1 flex-wrap">
-                      <Button size="sm" variant="success" onClick={() => { setShowDetail(false); setTimeout(() => openPay(selected), 100) }}><Banknote className="w-3 h-3 mr-1" />To'lov</Button>
-                      <Button size="sm" variant="outline" className="text-orange-600 border-orange-300" onClick={() => { setShowDetail(false); setTimeout(() => openDebt(selected), 100) }}><Plus className="w-3 h-3 mr-1" />Qarz</Button>
-                      <Button size="sm" variant="outline" onClick={() => exportSupplierExcel(selected)}><Download className="w-3 h-3 mr-1" />Excel</Button>
-                    </div>
-                  </div>
-                </div>
-              </div>
+        <DialogContent className="w-full max-w-lg h-[100dvh] sm:h-auto sm:max-h-[90vh] flex flex-col p-0 gap-0 rounded-none sm:rounded-2xl">
 
+          {/* Fixed header */}
+          <div className="flex-shrink-0 px-4 pt-4 pb-3 border-b border-border">
+            <div className="flex items-start justify-between gap-3">
               <div>
-                <h4 className="font-semibold mb-2 flex items-center gap-2 text-sm">
-                  <FileText className="w-4 h-4" />Qarz va to'lovlar tarixi ({debtHistory?.data?.length || 0})
-                </h4>
-                {debtHistory?.data && debtHistory.data.length > 0 ? (
-                  <>
-                    {/* Mobile cards */}
-                    <div className="md:hidden space-y-2">
+                <h2 className="text-base font-bold">{selected?.name}</h2>
+                {selected?.company_name && (
+                  <p className="text-xs text-gray-500 mt-0.5">{selected.company_name}</p>
+                )}
+              </div>
+              {selected && (
+                <div className="text-right flex-shrink-0">
+                  <p className="text-xs text-gray-400">Joriy qarz</p>
+                  <p className={cn("text-lg font-bold", selected.current_debt > 0 ? "text-red-600" : "text-success")}>
+                    {formatMoney(selected.current_debt)}
+                  </p>
+                </div>
+              )}
+            </div>
+            {/* Action buttons */}
+            {selected && (
+              <div className="flex gap-2 mt-3">
+                {selected.current_debt > 0 && (
+                  <button onClick={() => { setShowDetail(false); setTimeout(() => openPay(selected), 100) }}
+                    className="flex-1 flex items-center justify-center gap-1.5 h-9 rounded-xl bg-success text-white text-xs font-semibold active:scale-95">
+                    <Banknote className="w-3.5 h-3.5" /> To'lov
+                  </button>
+                )}
+                <button onClick={() => { setShowDetail(false); setTimeout(() => openDebt(selected), 100) }}
+                  className="flex-1 flex items-center justify-center gap-1.5 h-9 rounded-xl border border-orange-300 text-orange-600 text-xs font-semibold active:scale-95">
+                  <Plus className="w-3.5 h-3.5" /> Qarz
+                </button>
+                <button onClick={() => exportSupplierExcel(selected)}
+                  className="flex items-center justify-center gap-1.5 px-3 h-9 rounded-xl border border-border text-gray-600 text-xs font-semibold active:scale-95">
+                  <Download className="w-3.5 h-3.5" /> Excel
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Scrollable body */}
+          <div className="flex-1 overflow-y-auto p-4 space-y-4">
+            {selected && (
+              <>
+                {/* Contact info chips */}
+                <div className="grid grid-cols-2 gap-2">
+                  {selected.phone && (
+                    <a href={`tel:${selected.phone}`}
+                      className="flex items-center gap-2 p-3 bg-blue-50 border border-blue-100 rounded-2xl">
+                      <Phone className="w-4 h-4 text-blue-500 flex-shrink-0" />
+                      <span className="text-sm font-medium text-blue-700 truncate">{selected.phone}</span>
+                    </a>
+                  )}
+                  {selected.phone_secondary && (
+                    <a href={`tel:${selected.phone_secondary}`}
+                      className="flex items-center gap-2 p-3 bg-blue-50 border border-blue-100 rounded-2xl">
+                      <Phone className="w-4 h-4 text-blue-500 flex-shrink-0" />
+                      <span className="text-sm font-medium text-blue-700 truncate">{selected.phone_secondary}</span>
+                    </a>
+                  )}
+                  {selected.contact_person && (
+                    <div className="flex items-center gap-2 p-3 bg-gray-50 border border-border rounded-2xl">
+                      <Building className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                      <span className="text-sm text-gray-700 truncate">{selected.contact_person}</span>
+                    </div>
+                  )}
+                  {selected.email && (
+                    <div className="flex items-center gap-2 p-3 bg-gray-50 border border-border rounded-2xl">
+                      <span className="text-sm">📧</span>
+                      <span className="text-sm text-gray-700 truncate">{selected.email}</span>
+                    </div>
+                  )}
+                  {(selected.address || selected.city) && (
+                    <div className="col-span-2 flex items-center gap-2 p-3 bg-gray-50 border border-border rounded-2xl">
+                      <MapPin className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                      <span className="text-sm text-gray-700">
+                        {selected.address}{selected.city ? `, ${selected.city}` : ''}
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Bank info */}
+                {(selected.inn || selected.bank_account || selected.bank_name) && (
+                  <div className="bg-gray-50 border border-border rounded-2xl p-3 space-y-1.5">
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Bank</p>
+                    {selected.inn && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-500">INN:</span>
+                        <span className="font-medium">{selected.inn}</span>
+                      </div>
+                    )}
+                    {selected.bank_account && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-500">H/R:</span>
+                        <span className="font-medium font-mono text-xs">{selected.bank_account}</span>
+                      </div>
+                    )}
+                    {selected.bank_name && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-500">Bank:</span>
+                        <span className="font-medium">{selected.bank_name} {selected.mfo ? `(${selected.mfo})` : ''}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Notes */}
+                {selected.notes && (
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-2xl p-3">
+                    <p className="text-xs font-semibold text-yellow-700 mb-1">📝 Izoh</p>
+                    <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{selected.notes}</p>
+                  </div>
+                )}
+
+                {/* Debt history */}
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide flex items-center gap-1.5">
+                    <FileText className="w-3.5 h-3.5" />
+                    Tarix ({debtHistory?.data?.length || 0})
+                  </p>
+                  {debtHistory?.data && debtHistory.data.length > 0 ? (
+                    <div className="space-y-2">
                       {debtHistory.data.map((r: DebtRecord) => {
                         const isPay = r.transaction_type === 'DEBT_PAYMENT'
+                        const typeLabel = isPay ? "To'lov"
+                          : r.reference_type === 'initial' ? "Boshlang'ich"
+                          : r.reference_type === 'stock_income' ? 'Kirim'
+                          : 'Qarz'
                         return (
-                          <div key={r.id} className={cn("p-3 rounded-lg border", isPay ? "bg-green-50 border-green-200" : "bg-red-50 border-red-200", r.is_deleted && "opacity-40")}>
-                            <div className="flex justify-between items-start">
+                          <div key={r.id}
+                            className={cn(
+                              "rounded-2xl border p-3 transition-opacity",
+                              isPay ? "bg-green-50 border-green-200 border-l-4 border-l-success"
+                                    : "bg-red-50 border-red-200 border-l-4 border-l-danger",
+                              r.is_deleted && "opacity-40 line-through"
+                            )}>
+                            <div className="flex items-start justify-between gap-2">
                               <div>
-                                <Badge variant={isPay ? 'success' : 'warning'}>{isPay ? "To'lov" : r.reference_type === 'initial' ? "Boshlang'ich" : r.reference_type === 'stock_income' ? 'Kirim' : 'Qarz'}</Badge>
-                                <p className="text-xs text-gray-400 mt-1">{formatDateTashkent(r.created_at)} {formatTimeTashkent(r.created_at)}</p>
+                                <span className={cn(
+                                  "text-xs font-semibold px-2 py-0.5 rounded-lg",
+                                  isPay ? "bg-green-100 text-success" : "bg-red-100 text-danger"
+                                )}>
+                                  {typeLabel}
+                                </span>
+                                <p className="text-xs text-gray-400 mt-1">
+                                  {formatDateTashkent(r.created_at)} · {formatTimeTashkent(r.created_at)}
+                                </p>
+                                {r.created_by_name && (
+                                  <p className="text-xs text-gray-400">{r.created_by_name}</p>
+                                )}
                               </div>
-                              <div className="text-right">
-                                <p className={cn("font-bold text-base", isPay ? "text-green-600" : "text-red-600")}>{isPay ? '-' : '+'}{formatMoney(Math.abs(r.amount))}</p>
-                                <p className="text-xs text-gray-500">Qarz: <span className="font-semibold">{formatMoney(r.balance_after)}</span></p>
+                              <div className="text-right flex-shrink-0">
+                                <p className={cn("font-bold text-base", isPay ? "text-success" : "text-danger")}>
+                                  {isPay ? '−' : '+'}{formatMoney(Math.abs(r.amount))}
+                                </p>
+                                <p className="text-xs text-gray-500">
+                                  Qoldi: <span className={cn("font-semibold", r.balance_after > 0 ? "text-danger" : "text-success")}>
+                                    {formatMoney(r.balance_after)}
+                                  </span>
+                                </p>
                               </div>
                             </div>
-                            {r.description && <p className="text-xs text-gray-600 mt-2 pt-2 border-t border-gray-200">{r.description}</p>}
-                            {r.created_by_name && <p className="text-[10px] text-gray-400 mt-1">— {r.created_by_name}</p>}
+                            {r.description && (
+                              <p className="text-xs text-gray-600 mt-2 pt-2 border-t border-gray-200/60 leading-relaxed">
+                                {r.description}
+                              </p>
+                            )}
                           </div>
                         )
                       })}
                     </div>
-                    {/* Desktop table */}
-                    <div className="hidden md:block border rounded-lg overflow-x-auto">
-                      <table className="w-full">
-                        <thead className="bg-gray-50"><tr>
-                          <th className="px-3 py-2 text-left text-xs font-medium">Sana</th>
-                          <th className="px-3 py-2 text-left text-xs font-medium">Turi</th>
-                          <th className="px-3 py-2 text-right text-xs font-medium">Summa</th>
-                          <th className="px-3 py-2 text-right text-xs font-medium">Oldin</th>
-                          <th className="px-3 py-2 text-right text-xs font-medium">Keyin</th>
-                          <th className="px-3 py-2 text-left text-xs font-medium">Izoh</th>
-                          <th className="px-3 py-2 text-left text-xs font-medium">Kim</th>
-                        </tr></thead>
-                        <tbody className="divide-y">
-                          {debtHistory.data.map((r: DebtRecord) => {
-                            const isPay = r.transaction_type === 'DEBT_PAYMENT'
-                            return (
-                              <tr key={r.id} className={cn("hover:bg-gray-50", r.is_deleted && "opacity-50 line-through")}>
-                                <td className="px-3 py-2 text-xs"><div>{formatDateTashkent(r.created_at)}</div><div className="text-gray-400">{formatTimeTashkent(r.created_at)}</div></td>
-                                <td className="px-3 py-2"><Badge variant={isPay ? 'success' : 'warning'}>{isPay ? "To'lov" : r.reference_type === 'initial' ? "Boshlang'ich" : r.reference_type === 'stock_income' ? 'Kirim' : 'Qarz'}</Badge></td>
-                                <td className={cn("px-3 py-2 text-right font-semibold text-sm", isPay ? "text-green-600" : "text-red-600")}>{isPay ? '-' : '+'}{formatMoney(Math.abs(r.amount))}</td>
-                                <td className="px-3 py-2 text-right text-xs text-gray-400">{formatMoney(r.balance_before)}</td>
-                                <td className={cn("px-3 py-2 text-right text-sm font-semibold", r.balance_after > 0 ? "text-red-600" : "text-green-600")}>{formatMoney(r.balance_after)}</td>
-                                <td className="px-3 py-2 text-xs text-gray-500 max-w-[250px]"><div className="whitespace-pre-wrap">{r.description || '-'}</div></td>
-                                <td className="px-3 py-2 text-xs text-gray-400">{r.created_by_name || '-'}</td>
-                              </tr>
-                            )
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
-                  </>
-                ) : <p className="text-center text-gray-400 py-6">Tarix bo'sh</p>}
-              </div>
-            </div>
-          )}
+                  ) : (
+                    <p className="text-center text-gray-400 text-sm py-6">Tarix bo'sh</p>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Fixed footer */}
+          <div className="flex-shrink-0 px-4 pb-5 pt-3 border-t border-border">
+            <button onClick={() => setShowDetail(false)}
+              className="w-full h-12 rounded-2xl border-2 border-border text-sm font-semibold text-gray-600 active:bg-gray-50">
+              Yopish
+            </button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

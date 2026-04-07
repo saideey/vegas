@@ -133,478 +133,284 @@ export default function ReportsPage() {
   }
 
   return (
-    <div className="space-y-4 lg:space-y-6">
-      {/* Header */}
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 lg:gap-4">
-        <h1 className="text-xl lg:text-pos-xl font-bold">{t('reports')}</h1>
-        
-        {/* Date Filters */}
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 lg:gap-4">
-          <div className="flex items-center gap-2">
-            <Calendar className="w-4 h-4 lg:w-5 lg:h-5 text-text-secondary hidden sm:block" />
-            <Input
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              className="flex-1 sm:w-32 lg:w-40 text-sm lg:text-base"
-            />
-            <span className="text-text-secondary">-</span>
-            <Input
-              type="date"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              className="flex-1 sm:w-32 lg:w-40 text-sm lg:text-base"
-            />
-          </div>
-          
-          {exchangeRateData && (
-            <Badge variant="secondary" className="text-sm lg:text-pos-base justify-center">
-              $ = {formatNumber(exchangeRateData.usd_rate)} {t('sum')}
-            </Badge>
-          )}
-        </div>
+    <div className="space-y-3">
+      {/* ── Header ── */}
+      <div className="flex items-center justify-between gap-2">
+        <h1 className="text-lg font-bold">{t('reports')}</h1>
+        {exchangeRateData && (
+          <span className="flex items-center gap-1 px-2.5 py-1.5 bg-blue-50 rounded-xl text-xs font-semibold text-primary">
+            <DollarSign className="w-3.5 h-3.5" />
+            1$ = {formatNumber(exchangeRateData.usd_rate)}
+          </span>
+        )}
       </div>
 
-      {/* Tabs */}
-      <div className="flex border-b border-border overflow-x-auto no-scrollbar">
-        <button
-          onClick={() => setActiveTab('profit')}
-          className={cn(
-            'px-3 lg:px-6 py-2.5 lg:py-3 font-medium border-b-4 transition-colors whitespace-nowrap text-sm lg:text-base',
-            activeTab === 'profit'
-              ? 'border-primary text-primary'
-              : 'border-transparent text-text-secondary hover:text-text-primary'
-          )}
-        >
-          <TrendingUp className="w-4 h-4 lg:w-5 lg:h-5 inline mr-1.5 lg:mr-2" />
-          {t('profitReport')}
-        </button>
-        <button
-          onClick={() => setActiveTab('sales')}
-          className={cn(
-            'px-3 lg:px-6 py-2.5 lg:py-3 font-medium border-b-4 transition-colors whitespace-nowrap text-sm lg:text-base',
-            activeTab === 'sales'
-              ? 'border-primary text-primary'
-              : 'border-transparent text-text-secondary hover:text-text-primary'
-          )}
-        >
-          <DollarSign className="w-4 h-4 lg:w-5 lg:h-5 inline mr-1.5 lg:mr-2" />
-          {t('salesReport')}
-        </button>
-        <button
-          onClick={() => setActiveTab('sellers')}
-          className={cn(
-            'px-3 lg:px-6 py-2.5 lg:py-3 font-medium border-b-4 transition-colors whitespace-nowrap text-sm lg:text-base',
-            activeTab === 'sellers'
-              ? 'border-primary text-primary'
-              : 'border-transparent text-text-secondary hover:text-text-primary'
-          )}
-        >
-          <Users className="w-4 h-4 lg:w-5 lg:h-5 inline mr-1.5 lg:mr-2" />
-          {t('sellerReport')}
-        </button>
-        <button
-          onClick={() => setActiveTab('export')}
-          className={cn(
-            'px-3 lg:px-6 py-2.5 lg:py-3 font-medium border-b-4 transition-colors whitespace-nowrap text-sm lg:text-base',
-            activeTab === 'export'
-              ? 'border-primary text-primary'
-              : 'border-transparent text-text-secondary hover:text-text-primary'
-          )}
-        >
-          <Download className="w-4 h-4 lg:w-5 lg:h-5 inline mr-1.5 lg:mr-2" />
-          {t('export')}
-        </button>
+      {/* ── Date range ── */}
+      <div className="bg-white rounded-2xl border border-border p-3 shadow-sm flex items-center gap-2">
+        <Calendar className="w-4 h-4 text-gray-400 flex-shrink-0" />
+        <input type="date" value={startDate}
+          onChange={(e) => setStartDate(e.target.value)}
+          className="flex-1 h-10 px-3 border border-border rounded-xl text-sm focus:outline-none focus:border-primary" />
+        <span className="text-gray-400">—</span>
+        <input type="date" value={endDate}
+          onChange={(e) => setEndDate(e.target.value)}
+          className="flex-1 h-10 px-3 border border-border rounded-xl text-sm focus:outline-none focus:border-primary" />
+      </div>
+
+      {/* ── Tabs ── */}
+      <div className="flex gap-1 bg-gray-100 p-1 rounded-2xl overflow-x-auto no-scrollbar">
+        {[
+          { key: 'profit', icon: TrendingUp, label: t('profitReport') },
+          { key: 'sales',  icon: DollarSign, label: t('salesReport') },
+          { key: 'sellers',icon: Users,      label: t('sellerReport') },
+          { key: 'export', icon: Download,   label: t('export') },
+        ].map(({ key, icon: Icon, label }) => (
+          <button key={key}
+            onClick={() => setActiveTab(key as any)}
+            className={cn(
+              "flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-semibold transition-all whitespace-nowrap min-w-fit px-2",
+              activeTab === key ? "bg-white text-primary shadow-sm" : "text-gray-500"
+            )}>
+            <Icon className="w-3.5 h-3.5" />
+            {label}
+          </button>
+        ))}
       </div>
 
       {/* Profit Tab */}
       {activeTab === 'profit' && (
-        <div className="space-y-4 lg:space-y-6">
+        <div className="space-y-3">
           {loadingProfit ? (
-            <div className="flex items-center justify-center py-12">
+            <div className="flex items-center justify-center py-16">
               <Loader2 className="w-8 h-8 animate-spin text-primary" />
             </div>
           ) : profitData ? (
             <>
-              {/* Summary Cards */}
-              <div className="grid grid-cols-2 lg:grid-cols-3 gap-2 lg:gap-4">
-                <Card>
-                  <CardContent className="p-3 lg:p-6">
-                    <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-2">
-                      <div className="min-w-0 flex-1">
-                        <p className="text-xs lg:text-sm text-text-secondary">{t('totalRevenue')}</p>
-                        <p className="text-sm lg:text-pos-xl font-bold text-primary truncate">
-                          {formatMoney(profitData.summary.total_revenue)}
-                        </p>
-                      </div>
-                      <DollarSign className="w-6 h-6 lg:w-10 lg:h-10 text-primary/20 hidden lg:block" />
-                    </div>
-                  </CardContent>
-                </Card>
-                
-                <Card>
-                  <CardContent className="p-3 lg:p-6">
-                    <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-2">
-                      <div className="min-w-0 flex-1">
-                        <p className="text-xs lg:text-sm text-text-secondary">{t('totalCostPrice')}</p>
-                        <p className="text-sm lg:text-pos-xl font-bold text-warning truncate">
-                          {formatMoney(profitData.summary.total_cost)}
-                        </p>
-                      </div>
-                      <Package className="w-6 h-6 lg:w-10 lg:h-10 text-warning/20 hidden lg:block" />
-                    </div>
-                  </CardContent>
-                </Card>
-                
-                <Card>
-                  <CardContent className="p-3 lg:p-6">
-                    <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-2">
-                      <div className="min-w-0 flex-1">
-                        <p className="text-xs lg:text-sm text-text-secondary">Yalpi foyda</p>
-                        <p className={cn(
-                          "text-sm lg:text-pos-xl font-bold truncate",
-                          profitData.summary.total_profit >= 0 ? "text-success" : "text-danger"
-                        )}>
-                          {formatMoney(profitData.summary.total_profit)}
-                        </p>
-                      </div>
-                      <TrendingUp className="w-6 h-6 lg:w-10 lg:h-10 text-success/20 hidden lg:block" />
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardContent className="p-3 lg:p-6">
-                    <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-2">
-                      <div className="min-w-0 flex-1">
-                        <p className="text-xs lg:text-sm text-text-secondary">Chiqimlar</p>
-                        <p className="text-sm lg:text-pos-xl font-bold text-red-500 truncate">
-                          {formatMoney(profitData.summary.total_expenses || 0)}
-                        </p>
-                      </div>
-                      <TrendingDown className="w-6 h-6 lg:w-10 lg:h-10 text-red-200 hidden lg:block" />
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card className="border-2 border-green-200 bg-green-50/30">
-                  <CardContent className="p-3 lg:p-6">
-                    <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-2">
-                      <div className="min-w-0 flex-1">
-                        <p className="text-xs lg:text-sm text-text-secondary font-semibold">Sof foyda</p>
-                        <p className={cn(
-                          "text-sm lg:text-pos-xl font-bold truncate",
-                          (profitData.summary.net_profit || 0) >= 0 ? "text-green-700" : "text-danger"
-                        )}>
-                          {formatMoney(profitData.summary.net_profit || 0)}
-                        </p>
-                      </div>
-                      <Wallet className="w-6 h-6 lg:w-10 lg:h-10 text-green-300 hidden lg:block" />
-                    </div>
-                  </CardContent>
-                </Card>
-                
-                <Card>
-                  <CardContent className="p-3 lg:p-6">
-                    <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-2">
-                      <div className="min-w-0 flex-1">
-                        <p className="text-xs lg:text-sm text-text-secondary">{t('profitPercent')}</p>
-                        <p className={cn(
-                          "text-sm lg:text-pos-xl font-bold",
-                          profitData.summary.profit_margin >= 0 ? "text-success" : "text-danger"
-                        )}>
-                          {profitData.summary.profit_margin.toFixed(1)}%
-                        </p>
-                      </div>
-                      <div className="text-lg lg:text-2xl hidden lg:block">📊</div>
-                    </div>
-                  </CardContent>
-                </Card>
+              {/* Summary 2x3 grid */}
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { label: t('totalRevenue'),   value: formatMoney(profitData.summary.total_revenue),          color: 'text-primary',   bg: 'bg-blue-50',   border: 'border-blue-100' },
+                  { label: t('totalCostPrice'), value: formatMoney(profitData.summary.total_cost),             color: 'text-warning',   bg: 'bg-orange-50', border: 'border-orange-100' },
+                  { label: 'Yalpi foyda',       value: formatMoney(profitData.summary.total_profit),           color: profitData.summary.total_profit >= 0 ? 'text-success' : 'text-danger', bg: 'bg-green-50', border: 'border-green-100' },
+                  { label: 'Chiqimlar',         value: formatMoney(profitData.summary.total_expenses || 0),    color: 'text-red-500',   bg: 'bg-red-50',    border: 'border-red-100' },
+                  { label: 'Sof foyda',         value: formatMoney(profitData.summary.net_profit || 0),        color: (profitData.summary.net_profit || 0) >= 0 ? 'text-green-700' : 'text-danger', bg: 'bg-green-50', border: 'border-green-200', bold: true },
+                  { label: t('profitPercent'),  value: `${profitData.summary.profit_margin.toFixed(1)}%`,     color: profitData.summary.profit_margin >= 0 ? 'text-success' : 'text-danger', bg: 'bg-gray-50', border: 'border-gray-200' },
+                ].map((item, i) => (
+                  <div key={i} className={cn("rounded-2xl border p-3 shadow-sm", item.bg, item.border)}>
+                    <p className="text-xs text-gray-500">{item.label}</p>
+                    <p className={cn("text-base font-bold mt-0.5 truncate", item.color, item.bold && "text-lg")}>
+                      {item.value}
+                    </p>
+                  </div>
+                ))}
               </div>
 
               {/* Expenses breakdown */}
               {profitData.summary.expenses_list && profitData.summary.expenses_list.length > 0 && (
-                <Card>
-                  <CardContent className="p-3 lg:p-4">
-                    <h3 className="text-sm font-semibold mb-2 flex items-center gap-2">
-                      <Wallet className="w-4 h-4 text-orange-500" />
-                      Chiqimlar tafsiloti
-                    </h3>
-                    <div className="flex flex-wrap gap-2">
-                      {profitData.summary.expenses_list.map((exp: any, i: number) => (
-                        <div key={i} className="flex items-center gap-2 bg-red-50 rounded-lg px-3 py-1.5">
-                          <span className="text-sm">{exp.name}</span>
-                          <span className="text-sm font-bold text-red-600">{formatMoney(exp.total)}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
+                <div className="bg-white rounded-2xl border border-border p-3 shadow-sm">
+                  <p className="text-xs font-semibold text-gray-500 mb-2 flex items-center gap-1.5">
+                    <Wallet className="w-3.5 h-3.5 text-orange-500" />
+                    Chiqimlar tafsiloti
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {profitData.summary.expenses_list.map((exp: any, i: number) => (
+                      <div key={i} className="flex items-center gap-1.5 bg-red-50 border border-red-100 rounded-xl px-2.5 py-1.5">
+                        <span className="text-xs text-gray-600">{exp.name}</span>
+                        <span className="text-xs font-bold text-red-600">{formatMoney(exp.total)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               )}
 
-              {/* Products Table */}
-              <Card>
-                <CardContent className="p-0">
-                  <div className="p-3 lg:p-4 border-b border-border">
-                    <h3 className="text-base lg:text-pos-lg font-bold">{t('profitByProducts')}</h3>
-                    <p className="text-xs lg:text-sm text-text-secondary">
-                      {profitData.summary.products_count} {t('product')}
-                    </p>
-                  </div>
-                  
-                  <div className="overflow-x-auto">
-                    <table className="w-full min-w-[600px]">
-                      <thead className="bg-gray-50">
-                        <tr>
-                          <th className="px-4 py-3 text-left text-sm font-semibold">{t('product')}</th>
-                          <th className="px-4 py-3 text-right text-sm font-semibold">{t('quantity')}</th>
-                          <th className="px-4 py-3 text-right text-sm font-semibold">{t('costPrice')}</th>
-                          <th className="px-4 py-3 text-right text-sm font-semibold">{t('totalRevenue')}</th>
-                          <th className="px-4 py-3 text-right text-sm font-semibold">{t('profit')}</th>
-                          <th className="px-4 py-3 text-right text-sm font-semibold">%</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-border">
-                        {profitData.data.map((item: any, index: number) => (
-                          <tr key={item.product_id} className="hover:bg-gray-50">
-                            <td className="px-4 py-3">
-                              <div>
-                                <p className="font-medium">{item.product_name}</p>
-                                {item.product_article && (
-                                  <p className="text-sm text-text-secondary">{item.product_article}</p>
-                                )}
-                              </div>
-                            </td>
-                            <td className="px-4 py-3 text-right">{formatNumber(item.total_quantity)}</td>
-                            <td className="px-4 py-3 text-right text-warning">
-                              {formatMoney(item.total_cost)}
-                            </td>
-                            <td className="px-4 py-3 text-right">
-                              {formatMoney(item.total_revenue)}
-                            </td>
-                            <td className={cn(
-                              "px-4 py-3 text-right font-semibold",
-                              item.total_profit >= 0 ? "text-success" : "text-danger"
-                            )}>
-                              {formatMoney(item.total_profit)}
-                            </td>
-                            <td className="px-4 py-3 text-right">
-                              <Badge variant={item.profit_margin >= 20 ? "success" : item.profit_margin >= 10 ? "warning" : "danger"}>
-                                {item.profit_margin.toFixed(1)}%
-                              </Badge>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </CardContent>
-              </Card>
+              {/* Products — mobile cards */}
+              <div className="bg-white rounded-2xl border border-border shadow-sm overflow-hidden">
+                <div className="px-4 py-3 border-b border-border flex items-center justify-between">
+                  <h3 className="text-sm font-bold">{t('profitByProducts')}</h3>
+                  <span className="text-xs text-gray-400">{profitData.summary.products_count} ta</span>
+                </div>
+                <div className="space-y-0 divide-y divide-border">
+                  {profitData.data.map((item: any, index: number) => (
+                    <div key={item.product_id} className="p-3">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold truncate">{item.product_name}</p>
+                          {item.product_article && (
+                            <p className="text-xs text-gray-400">Art: {item.product_article}</p>
+                          )}
+                        </div>
+                        <span className={cn(
+                          "flex-shrink-0 text-xs font-bold px-2 py-0.5 rounded-lg",
+                          item.profit_margin >= 20 ? "bg-green-100 text-success"
+                          : item.profit_margin >= 10 ? "bg-orange-100 text-warning"
+                          : "bg-red-100 text-danger"
+                        )}>
+                          {item.profit_margin.toFixed(1)}%
+                        </span>
+                      </div>
+                      <div className="flex flex-wrap gap-2 mt-2">
+                        <div className="flex items-center gap-1 bg-gray-50 rounded-xl px-2 py-1">
+                          <span className="text-xs text-gray-400">Miqdor:</span>
+                          <span className="text-xs font-semibold">{formatNumber(item.total_quantity)}</span>
+                        </div>
+                        <div className="flex items-center gap-1 bg-orange-50 rounded-xl px-2 py-1">
+                          <span className="text-xs text-gray-400">Tan:</span>
+                          <span className="text-xs font-semibold text-warning">{formatMoney(item.total_cost)}</span>
+                        </div>
+                        <div className="flex items-center gap-1 bg-blue-50 rounded-xl px-2 py-1">
+                          <span className="text-xs text-gray-400">Tushim:</span>
+                          <span className="text-xs font-semibold text-primary">{formatMoney(item.total_revenue)}</span>
+                        </div>
+                        <div className={cn("flex items-center gap-1 rounded-xl px-2 py-1", item.total_profit >= 0 ? "bg-green-50" : "bg-red-50")}>
+                          <span className="text-xs text-gray-400">Foyda:</span>
+                          <span className={cn("text-xs font-bold", item.total_profit >= 0 ? "text-success" : "text-danger")}>
+                            {formatMoney(item.total_profit)}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </>
           ) : (
-            <p className="text-center py-12 text-text-secondary">{t('noData')}</p>
+            <p className="text-center py-16 text-text-secondary text-sm">{t('noData')}</p>
           )}
         </div>
       )}
 
       {/* Sales Tab */}
       {activeTab === 'sales' && (
-        <div className="space-y-6">
+        <div className="space-y-3">
           {loadingSales ? (
-            <div className="flex items-center justify-center py-12">
+            <div className="flex items-center justify-center py-16">
               <Loader2 className="w-8 h-8 animate-spin text-primary" />
             </div>
           ) : salesData ? (
             <>
-              {/* Summary Cards */}
-              <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
-                <Card>
-                  <CardContent className="p-4">
-                    <p className="text-sm text-text-secondary">{t('salesCount')}</p>
-                    <p className="text-pos-xl font-bold">{salesData.summary.total_sales}</p>
-                  </CardContent>
-                </Card>
-                
-                <Card>
-                  <CardContent className="p-4">
-                    <p className="text-sm text-text-secondary">{t('totalSum')}</p>
-                    <p className="text-pos-lg font-bold text-primary">
-                      {formatMoney(salesData.summary.total_amount)}
-                    </p>
-                  </CardContent>
-                </Card>
-                
-                <Card>
-                  <CardContent className="p-4">
-                    <p className="text-sm text-text-secondary">{t('discounts')}</p>
-                    <p className="text-pos-lg font-bold text-warning">
-                      {formatMoney(salesData.summary.total_discount)}
-                    </p>
-                  </CardContent>
-                </Card>
-                
-                <Card>
-                  <CardContent className="p-4">
-                    <p className="text-sm text-text-secondary">{t('paid')}</p>
-                    <p className="text-pos-lg font-bold text-success">
-                      {formatMoney(salesData.summary.total_paid)}
-                    </p>
-                  </CardContent>
-                </Card>
-                
-                <Card>
-                  <CardContent className="p-4">
-                    <p className="text-sm text-text-secondary">{t('debt')}</p>
-                    <p className="text-pos-lg font-bold text-danger">
-                      {formatMoney(salesData.summary.total_debt)}
-                    </p>
-                  </CardContent>
-                </Card>
-                
-                <Card>
-                  <CardContent className="p-4">
-                    <p className="text-sm text-text-secondary">{t('averageCheck')}</p>
-                    <p className="text-pos-lg font-bold">
-                      {formatMoney(salesData.summary.average_sale)}
-                    </p>
-                  </CardContent>
-                </Card>
+              {/* Summary 2x3 grid */}
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { label: t('salesCount'),   value: salesData.summary.total_sales,                bg: 'bg-blue-50',   border: 'border-blue-100',   color: 'text-blue-700' },
+                  { label: t('totalSum'),     value: formatMoney(salesData.summary.total_amount),   bg: 'bg-green-50',  border: 'border-green-100',  color: 'text-primary' },
+                  { label: t('paid'),         value: formatMoney(salesData.summary.total_paid),     bg: 'bg-green-50',  border: 'border-green-100',  color: 'text-success' },
+                  { label: t('debt'),         value: formatMoney(salesData.summary.total_debt),     bg: 'bg-red-50',    border: 'border-red-100',    color: 'text-danger' },
+                  { label: t('discounts'),    value: formatMoney(salesData.summary.total_discount), bg: 'bg-orange-50', border: 'border-orange-100', color: 'text-warning' },
+                  { label: t('averageCheck'), value: formatMoney(salesData.summary.average_sale),   bg: 'bg-gray-50',   border: 'border-gray-200',   color: 'text-gray-700' },
+                ].map((item, i) => (
+                  <div key={i} className={cn("rounded-2xl border p-3 shadow-sm", item.bg, item.border)}>
+                    <p className="text-xs text-gray-500">{item.label}</p>
+                    <p className={cn("text-base font-bold mt-0.5", item.color)}>{item.value}</p>
+                  </div>
+                ))}
               </div>
 
-              {/* Payment Breakdown */}
-              <Card>
-                <CardContent className="p-6">
-                  <h3 className="text-pos-lg font-bold mb-4">{t('paymentType')}</h3>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    {Object.entries(salesData.payment_breakdown).map(([type, amount]: [string, any]) => (
-                      <div key={type} className="p-4 bg-gray-50 rounded-pos">
-                        <p className="text-sm text-text-secondary capitalize">{type}</p>
-                        <p className="text-pos-lg font-bold">{formatMoney(amount)}</p>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
+              {/* Payment breakdown chips */}
+              <div className="bg-white rounded-2xl border border-border p-3 shadow-sm">
+                <p className="text-xs font-semibold text-gray-500 mb-2.5 flex items-center gap-1.5">
+                  <CreditCard className="w-3.5 h-3.5" />
+                  {t('paymentType')}
+                </p>
+                <div className="grid grid-cols-2 gap-2">
+                  {Object.entries(salesData.payment_breakdown).map(([type, amount]: [string, any]) => (
+                    <div key={type} className="bg-gray-50 border border-border rounded-2xl p-3">
+                      <p className="text-xs text-gray-500 capitalize">{type}</p>
+                      <p className="text-sm font-bold mt-0.5">{formatMoney(amount)}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </>
           ) : (
-            <p className="text-center py-12 text-text-secondary">{t('noData')}</p>
+            <p className="text-center py-16 text-text-secondary text-sm">{t('noData')}</p>
           )}
         </div>
       )}
 
-      {/* Sellers/Kassirlar Tab */}
+      {/* Sellers Tab */}
       {activeTab === 'sellers' && (
-        <div className="space-y-4 lg:space-y-6">
-          {/* Seller selector */}
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex flex-col sm:flex-row gap-4">
-                <div className="flex-1">
-                  <label className="block text-sm font-medium text-gray-600 mb-2">{t('selectSeller')}</label>
-                  <select
-                    value={selectedSellerId}
-                    onChange={(e) => setSelectedSellerId(e.target.value ? Number(e.target.value) : '')}
-                    className="w-full h-12 px-4 border-2 border-gray-200 rounded-xl text-base focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  >
-                    <option value="">{t('all')} {t('sellersList').toLowerCase()}</option>
-                    {sellersSummary?.sellers?.map((seller: any) => (
-                      <option key={seller.id} value={seller.id}>
-                        {seller.name} ({seller.sales_count} - {formatMoney(seller.total_amount)})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+        <div className="space-y-3">
+          {/* Selector */}
+          <div className="bg-white rounded-2xl border border-border p-3 shadow-sm space-y-1.5">
+            <label className="text-xs font-semibold text-gray-500">{t('selectSeller')}</label>
+            <select
+              value={selectedSellerId}
+              onChange={(e) => setSelectedSellerId(e.target.value ? Number(e.target.value) : '')}
+              className="w-full h-11 px-3 border border-border rounded-xl text-sm bg-white focus:outline-none focus:border-primary"
+            >
+              <option value="">{t('all')} — {t('sellersList').toLowerCase()}</option>
+              {sellersSummary?.sellers?.map((seller: any) => (
+                <option key={seller.id} value={seller.id}>
+                  {seller.name} ({seller.sales_count} sotuv)
+                </option>
+              ))}
+            </select>
+          </div>
 
           {/* All Sellers Summary */}
           {!selectedSellerId && (
             <>
               {loadingSellersSummary ? (
-                <div className="flex items-center justify-center py-12">
+                <div className="flex items-center justify-center py-16">
                   <Loader2 className="w-8 h-8 animate-spin text-primary" />
                 </div>
               ) : sellersSummary ? (
                 <>
-                  {/* Totals Summary */}
-                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                    <Card className="bg-blue-50">
-                      <CardContent className="p-4">
-                        <p className="text-xs text-blue-600">{t('totalSales')}</p>
-                        <p className="text-xl font-bold text-blue-700">{sellersSummary.totals.total_sales}</p>
-                      </CardContent>
-                    </Card>
-                    <Card className="bg-green-50">
-                      <CardContent className="p-4">
-                        <p className="text-xs text-green-600">{t('totalSum')}</p>
-                        <p className="text-xl font-bold text-green-700">{formatMoney(sellersSummary.totals.total_amount)}</p>
-                      </CardContent>
-                    </Card>
-                    <Card className="bg-purple-50">
-                      <CardContent className="p-4">
-                        <p className="text-xs text-purple-600">{t('paid')}</p>
-                        <p className="text-xl font-bold text-purple-700">{formatMoney(sellersSummary.totals.total_paid)}</p>
-                      </CardContent>
-                    </Card>
-                    <Card className="bg-red-50">
-                      <CardContent className="p-4">
-                        <p className="text-xs text-red-600">{t('onCredit')}</p>
-                        <p className="text-xl font-bold text-red-700">{formatMoney(sellersSummary.totals.total_debt)}</p>
-                      </CardContent>
-                    </Card>
+                  {/* Totals */}
+                  <div className="grid grid-cols-2 gap-2">
+                    {[
+                      { label: t('totalSales'), value: sellersSummary.totals.total_sales,                    bg: 'bg-blue-50',   color: 'text-blue-700',   border: 'border-blue-100' },
+                      { label: t('totalSum'),   value: formatMoney(sellersSummary.totals.total_amount),       bg: 'bg-green-50',  color: 'text-green-700',  border: 'border-green-100' },
+                      { label: t('paid'),       value: formatMoney(sellersSummary.totals.total_paid),         bg: 'bg-purple-50', color: 'text-purple-700', border: 'border-purple-100' },
+                      { label: t('onCredit'),   value: formatMoney(sellersSummary.totals.total_debt),         bg: 'bg-red-50',    color: 'text-red-700',    border: 'border-red-100' },
+                    ].map((item, i) => (
+                      <div key={i} className={cn("rounded-2xl border p-3 shadow-sm", item.bg, item.border)}>
+                        <p className="text-xs text-gray-500">{item.label}</p>
+                        <p className={cn("text-base font-bold mt-0.5", item.color)}>{item.value}</p>
+                      </div>
+                    ))}
                   </div>
 
-                  {/* Sellers List */}
-                  <Card>
-                    <CardContent className="p-4">
-                      <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
-                        <Users className="w-5 h-5" />
-                        {t('sellersList')}
-                      </h3>
-                      <div className="space-y-3">
-                        {sellersSummary.sellers?.map((seller: any) => (
-                          <div
-                            key={seller.id}
-                            onClick={() => setSelectedSellerId(seller.id)}
-                            className="p-4 border-2 rounded-xl cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition-all"
-                          >
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-3">
-                                <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                                  <User className="w-6 h-6 text-blue-600" />
-                                </div>
-                                <div>
-                                  <p className="font-semibold text-base">{seller.name}</p>
-                                  <p className="text-sm text-gray-500">@{seller.username}</p>
-                                </div>
-                              </div>
-                              <div className="text-right">
-                                <p className="font-bold text-lg text-green-600">{formatMoney(seller.total_amount)}</p>
-                                <p className="text-sm text-gray-500">{seller.sales_count} {t('sales').toLowerCase()}</p>
-                              </div>
-                            </div>
-                            <div className="mt-3 grid grid-cols-3 gap-2 text-center">
-                              <div className="bg-green-50 rounded-lg p-2">
-                                <p className="text-xs text-green-600">{t('paid')}</p>
-                                <p className="font-semibold text-green-700 text-sm">{formatMoney(seller.total_paid)}</p>
-                              </div>
-                              <div className="bg-red-50 rounded-lg p-2">
-                                <p className="text-xs text-red-600">{t('onCredit')}</p>
-                                <p className="font-semibold text-red-700 text-sm">{formatMoney(seller.total_debt)}</p>
-                              </div>
-                              <div className="bg-blue-50 rounded-lg p-2">
-                                <p className="text-xs text-blue-600">{t('averageCheck')}</p>
-                                <p className="font-semibold text-blue-700 text-sm">
-                                  {formatMoney(seller.sales_count > 0 ? seller.total_amount / seller.sales_count : 0)}
-                                </p>
-                              </div>
-                            </div>
+                  {/* Sellers list */}
+                  <div className="space-y-2">
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide flex items-center gap-1.5">
+                      <Users className="w-3.5 h-3.5" />{t('sellersList')}
+                    </p>
+                    {sellersSummary.sellers?.map((seller: any) => (
+                      <button key={seller.id} onClick={() => setSelectedSellerId(seller.id)}
+                        className="w-full bg-white rounded-2xl border border-border shadow-sm p-3 text-left active:scale-[0.99] transition-all hover:border-primary">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 bg-blue-100 rounded-2xl flex items-center justify-center flex-shrink-0">
+                            <User className="w-5 h-5 text-blue-600" />
                           </div>
-                        ))}
-                      </div>
-                    </CardContent>
-                  </Card>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-bold text-sm">{seller.name}</p>
+                            <p className="text-xs text-gray-400">@{seller.username}</p>
+                          </div>
+                          <div className="text-right flex-shrink-0">
+                            <p className="font-bold text-sm text-success">{formatMoney(seller.total_amount)}</p>
+                            <p className="text-xs text-gray-400">{seller.sales_count} sotuv</p>
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-3 gap-2 mt-2.5">
+                          <div className="bg-green-50 rounded-xl p-2 text-center">
+                            <p className="text-xs text-green-600">{t('paid')}</p>
+                            <p className="text-xs font-bold text-green-700">{formatMoney(seller.total_paid)}</p>
+                          </div>
+                          <div className="bg-red-50 rounded-xl p-2 text-center">
+                            <p className="text-xs text-red-600">{t('onCredit')}</p>
+                            <p className="text-xs font-bold text-red-700">{formatMoney(seller.total_debt)}</p>
+                          </div>
+                          <div className="bg-blue-50 rounded-xl p-2 text-center">
+                            <p className="text-xs text-blue-600">O'rtacha</p>
+                            <p className="text-xs font-bold text-blue-700">
+                              {formatMoney(seller.sales_count > 0 ? seller.total_amount / seller.sales_count : 0)}
+                            </p>
+                          </div>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
                 </>
               ) : null}
             </>
@@ -614,329 +420,196 @@ export default function ReportsPage() {
           {selectedSellerId && (
             <>
               {loadingSellerStats ? (
-                <div className="flex items-center justify-center py-12">
+                <div className="flex items-center justify-center py-16">
                   <Loader2 className="w-8 h-8 animate-spin text-primary" />
                 </div>
               ) : sellerStats ? (
                 <>
-                  {/* Seller Info */}
-                  <Card className="bg-gradient-to-r from-blue-600 to-blue-700 text-white">
-                    <CardContent className="p-4">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-4">
-                          <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center">
-                            <User className="w-8 h-8" />
-                          </div>
-                          <div>
-                            <h2 className="text-2xl font-bold">{sellerStats.seller.name}</h2>
-                            <p className="text-blue-100">@{sellerStats.seller.username} • {sellerStats.seller.role}</p>
-                          </div>
-                        </div>
-                        <Button
-                          onClick={async () => {
-                            try {
-                              toast.loading(t('excelPreparing'))
-                              const response = await api.get('/reports/excel/seller-stats', {
-                                params: { seller_id: selectedSellerId, start_date: startDate, end_date: endDate },
-                                responseType: 'blob'
-                              })
-                              const url = window.URL.createObjectURL(new Blob([response.data]))
-                              const link = document.createElement('a')
-                              link.href = url
-                              link.setAttribute('download', `kassir_${sellerStats.seller.username}_${startDate}_${endDate}.xlsx`)
-                              document.body.appendChild(link)
-                              link.click()
-                              link.remove()
-                              toast.dismiss()
-                              toast.success(t('excelDownloaded'))
-                            } catch (error) {
-                              toast.dismiss()
-                              toast.error(t('excelError'))
-                            }
-                          }}
-                          className="bg-white/20 hover:bg-white/30 text-white border-0"
-                        >
-                          <Download className="w-5 h-5 mr-2" />
-                          {t('downloadExcel2')}
-                        </Button>
+                  {/* Seller profile card */}
+                  <div className="bg-gradient-to-br from-blue-600 to-blue-700 rounded-2xl p-4 text-white">
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center flex-shrink-0">
+                        <User className="w-6 h-6" />
                       </div>
-                    </CardContent>
-                  </Card>
-
-                  {/* Summary Cards */}
-                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                    <Card>
-                      <CardContent className="p-4">
-                        <div className="flex items-center gap-3">
-                          <div className="p-2 bg-blue-100 rounded-lg">
-                            <ShoppingCart className="w-5 h-5 text-blue-600" />
-                          </div>
-                          <div>
-                            <p className="text-xs text-gray-500">{t('salesCount')}</p>
-                            <p className="text-xl font-bold">{sellerStats.summary.total_sales_count}</p>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                    <Card>
-                      <CardContent className="p-4">
-                        <div className="flex items-center gap-3">
-                          <div className="p-2 bg-green-100 rounded-lg">
-                            <DollarSign className="w-5 h-5 text-green-600" />
-                          </div>
-                          <div>
-                            <p className="text-xs text-gray-500">{t('totalSum')}</p>
-                            <p className="text-xl font-bold text-green-600">{formatMoney(sellerStats.summary.total_amount)}</p>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                    <Card>
-                      <CardContent className="p-4">
-                        <div className="flex items-center gap-3">
-                          <div className="p-2 bg-purple-100 rounded-lg">
-                            <CreditCard className="w-5 h-5 text-purple-600" />
-                          </div>
-                          <div>
-                            <p className="text-xs text-gray-500">{t('paid')}</p>
-                            <p className="text-xl font-bold text-purple-600">{formatMoney(sellerStats.summary.total_paid)}</p>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                    <Card>
-                      <CardContent className="p-4">
-                        <div className="flex items-center gap-3">
-                          <div className="p-2 bg-red-100 rounded-lg">
-                            <Banknote className="w-5 h-5 text-red-600" />
-                          </div>
-                          <div>
-                            <p className="text-xs text-gray-500">{t('soldOnCredit')}</p>
-                            <p className="text-xl font-bold text-red-600">{formatMoney(sellerStats.summary.total_debt)}</p>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </div>
-
-                  {/* Additional Stats */}
-                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                    <Card className="bg-yellow-50">
-                      <CardContent className="p-3">
-                        <p className="text-xs text-yellow-600">{t('averageCheck')}</p>
-                        <p className="text-lg font-bold text-yellow-700">{formatMoney(sellerStats.summary.average_sale)}</p>
-                      </CardContent>
-                    </Card>
-                    <Card className="bg-indigo-50">
-                      <CardContent className="p-3">
-                        <p className="text-xs text-indigo-600">{t('customersCount')}</p>
-                        <p className="text-lg font-bold text-indigo-700">{sellerStats.summary.unique_customers}</p>
-                      </CardContent>
-                    </Card>
-                    <Card className="bg-gray-50">
-                      <CardContent className="p-3">
-                        <p className="text-xs text-gray-600">{t('anonymousSales')}</p>
-                        <p className="text-lg font-bold text-gray-700">{sellerStats.summary.anonymous_sales}</p>
-                      </CardContent>
-                    </Card>
-                    <Card className="bg-orange-50">
-                      <CardContent className="p-3">
-                        <p className="text-xs text-orange-600">{t('discounts')}</p>
-                        <p className="text-lg font-bold text-orange-700">{formatMoney(sellerStats.summary.total_discount)}</p>
-                      </CardContent>
-                    </Card>
-                  </div>
-
-                  {/* Payment Breakdown */}
-                  <Card>
-                    <CardContent className="p-4">
-                      <h3 className="font-bold text-lg mb-3 flex items-center gap-2">
-                        <CreditCard className="w-5 h-5" />
-                        {t('paymentType')}
-                      </h3>
-                      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                        <div className="bg-green-50 rounded-xl p-4 text-center">
-                          <Banknote className="w-8 h-8 text-green-600 mx-auto mb-2" />
-                          <p className="text-xs text-green-600">{t('cash')}</p>
-                          <p className="text-lg font-bold text-green-700">{formatMoney(sellerStats.payment_breakdown.CASH || 0)}</p>
-                        </div>
-                        <div className="bg-blue-50 rounded-xl p-4 text-center">
-                          <CreditCard className="w-8 h-8 text-blue-600 mx-auto mb-2" />
-                          <p className="text-xs text-blue-600">{t('card')}</p>
-                          <p className="text-lg font-bold text-blue-700">{formatMoney(sellerStats.payment_breakdown.CARD || 0)}</p>
-                        </div>
-                        <div className="bg-purple-50 rounded-xl p-4 text-center">
-                          <Building className="w-8 h-8 text-purple-600 mx-auto mb-2" />
-                          <p className="text-xs text-purple-600">{t('transfer')}</p>
-                          <p className="text-lg font-bold text-purple-700">{formatMoney(sellerStats.payment_breakdown.TRANSFER || 0)}</p>
-                        </div>
-                        <div className="bg-red-50 rounded-xl p-4 text-center">
-                          <Package className="w-8 h-8 text-red-600 mx-auto mb-2" />
-                          <p className="text-xs text-red-600">{t('debt')}</p>
-                          <p className="text-lg font-bold text-red-700">{formatMoney(sellerStats.summary.total_debt)}</p>
-                        </div>
+                      <div className="flex-1 min-w-0">
+                        <h2 className="text-base font-bold">{sellerStats.seller.name}</h2>
+                        <p className="text-blue-200 text-xs">@{sellerStats.seller.username} · {sellerStats.seller.role}</p>
                       </div>
-                    </CardContent>
-                  </Card>
-
-                  {/* Collapsible Sections */}
-                  {/* Daily Breakdown */}
-                  <Card>
-                    <CardContent className="p-4">
                       <button
-                        onClick={() => setExpandedSection(expandedSection === 'daily' ? null : 'daily')}
-                        className="w-full flex items-center justify-between"
-                      >
-                        <h3 className="font-bold text-lg flex items-center gap-2">
-                          <Calendar className="w-5 h-5" />
-                          {t('dailyIndicators')}
-                        </h3>
-                        {expandedSection === 'daily' ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+                        onClick={async () => {
+                          try {
+                            toast.loading(t('excelPreparing'))
+                            const response = await api.get('/reports/excel/seller-stats', {
+                              params: { seller_id: selectedSellerId, start_date: startDate, end_date: endDate },
+                              responseType: 'blob'
+                            })
+                            const url = window.URL.createObjectURL(new Blob([response.data]))
+                            const link = document.createElement('a')
+                            link.href = url
+                            link.setAttribute('download', `kassir_${sellerStats.seller.username}_${startDate}_${endDate}.xlsx`)
+                            document.body.appendChild(link); link.click(); link.remove()
+                            toast.dismiss(); toast.success(t('excelDownloaded'))
+                          } catch { toast.dismiss(); toast.error(t('excelError')) }
+                        }}
+                        className="flex items-center gap-1.5 px-3 py-2 bg-white/20 rounded-xl text-xs font-semibold active:bg-white/30 flex-shrink-0">
+                        <Download className="w-3.5 h-3.5" /> Excel
                       </button>
-                      {expandedSection === 'daily' && (
-                        <div className="mt-4 space-y-2 max-h-80 overflow-y-auto">
+                    </div>
+                  </div>
+
+                  {/* Main stats 2x2 */}
+                  <div className="grid grid-cols-2 gap-2">
+                    {[
+                      { label: t('salesCount'),    value: sellerStats.summary.total_sales_count,        bg: 'bg-blue-50',   border: 'border-blue-100',   color: 'text-blue-700' },
+                      { label: t('totalSum'),       value: formatMoney(sellerStats.summary.total_amount), bg: 'bg-green-50',  border: 'border-green-100',  color: 'text-success' },
+                      { label: t('paid'),           value: formatMoney(sellerStats.summary.total_paid),   bg: 'bg-purple-50', border: 'border-purple-100', color: 'text-purple-700' },
+                      { label: t('soldOnCredit'),   value: formatMoney(sellerStats.summary.total_debt),   bg: 'bg-red-50',    border: 'border-red-100',    color: 'text-danger' },
+                      { label: t('averageCheck'),   value: formatMoney(sellerStats.summary.average_sale), bg: 'bg-yellow-50', border: 'border-yellow-100', color: 'text-yellow-700' },
+                      { label: t('customersCount'), value: sellerStats.summary.unique_customers,          bg: 'bg-indigo-50', border: 'border-indigo-100', color: 'text-indigo-700' },
+                      { label: t('anonymousSales'), value: sellerStats.summary.anonymous_sales,           bg: 'bg-gray-50',   border: 'border-gray-200',   color: 'text-gray-700' },
+                      { label: t('discounts'),      value: formatMoney(sellerStats.summary.total_discount),bg: 'bg-orange-50', border: 'border-orange-100', color: 'text-warning' },
+                    ].map((item, i) => (
+                      <div key={i} className={cn("rounded-2xl border p-3 shadow-sm", item.bg, item.border)}>
+                        <p className="text-xs text-gray-500">{item.label}</p>
+                        <p className={cn("text-base font-bold mt-0.5", item.color)}>{item.value}</p>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Payment breakdown */}
+                  <div className="bg-white rounded-2xl border border-border p-3 shadow-sm">
+                    <p className="text-xs font-semibold text-gray-500 mb-2.5 flex items-center gap-1.5">
+                      <CreditCard className="w-3.5 h-3.5" />{t('paymentType')}
+                    </p>
+                    <div className="grid grid-cols-2 gap-2">
+                      {[
+                        { label: t('cash'),     value: sellerStats.payment_breakdown.CASH || 0,     icon: Banknote,   bg: 'bg-green-50',  color: 'text-green-700' },
+                        { label: t('card'),     value: sellerStats.payment_breakdown.CARD || 0,     icon: CreditCard, bg: 'bg-blue-50',   color: 'text-blue-700' },
+                        { label: t('transfer'), value: sellerStats.payment_breakdown.TRANSFER || 0, icon: Building,   bg: 'bg-purple-50', color: 'text-purple-700' },
+                        { label: t('debt'),     value: sellerStats.summary.total_debt,              icon: Package,    bg: 'bg-red-50',    color: 'text-danger' },
+                      ].map((pt) => (
+                        <div key={pt.label} className={cn("rounded-2xl p-3 flex items-center gap-2", pt.bg)}>
+                          <pt.icon className="w-5 h-5 opacity-60 flex-shrink-0" />
+                          <div>
+                            <p className="text-xs text-gray-500">{pt.label}</p>
+                            <p className={cn("text-sm font-bold", pt.color)}>{formatMoney(pt.value)}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Collapsible sections */}
+                  {[
+                    {
+                      key: 'daily', icon: Calendar, title: t('dailyIndicators'),
+                      count: sellerStats.daily_breakdown?.length || 0,
+                      content: (
+                        <div className="space-y-2">
                           {sellerStats.daily_breakdown?.map((day: any) => (
-                            <div key={day.date} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                            <div key={day.date} className="flex items-center justify-between p-3 bg-gray-50 border border-border rounded-2xl">
                               <div>
-                                <p className="font-medium">{formatDateTashkent(day.date)}</p>
-                                <p className="text-sm text-gray-500">{day.sales_count} {t('sales').toLowerCase()}</p>
+                                <p className="text-sm font-semibold">{formatDateTashkent(day.date)}</p>
+                                <p className="text-xs text-gray-400">{day.sales_count} sotuv</p>
                               </div>
                               <div className="text-right">
-                                <p className="font-bold text-green-600">{formatMoney(day.total_amount)}</p>
-                                {day.debt_amount > 0 && (
-                                  <p className="text-sm text-red-500">{t('debt')}: {formatMoney(day.debt_amount)}</p>
-                                )}
+                                <p className="text-sm font-bold text-success">{formatMoney(day.total_amount)}</p>
+                                {day.debt_amount > 0 && <p className="text-xs text-danger">{formatMoney(day.debt_amount)}</p>}
                               </div>
                             </div>
                           ))}
                         </div>
-                      )}
-                    </CardContent>
-                  </Card>
-
-                  {/* Customers */}
-                  <Card>
-                    <CardContent className="p-4">
-                      <button
-                        onClick={() => setExpandedSection(expandedSection === 'customers' ? null : 'customers')}
-                        className="w-full flex items-center justify-between"
-                      >
-                        <h3 className="font-bold text-lg flex items-center gap-2">
-                          <Users className="w-5 h-5" />
-                          {t('customers')} ({sellerStats.customers?.length || 0})
-                        </h3>
-                        {expandedSection === 'customers' ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
-                      </button>
-                      {expandedSection === 'customers' && (
-                        <div className="mt-4 space-y-2 max-h-80 overflow-y-auto">
+                      )
+                    },
+                    {
+                      key: 'customers', icon: Users, title: t('customers'),
+                      count: sellerStats.customers?.length || 0,
+                      content: (
+                        <div className="space-y-2">
                           {sellerStats.customers?.map((cust: any) => (
-                            <div key={cust.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                              <div className="flex items-center gap-3">
-                                <div className={cn(
-                                  "w-10 h-10 rounded-full flex items-center justify-center",
-                                  cust.customer_type === 'VIP' ? "bg-yellow-100" : "bg-blue-100"
-                                )}>
-                                  <User className={cn(
-                                    "w-5 h-5",
-                                    cust.customer_type === 'VIP' ? "text-yellow-600" : "text-blue-600"
-                                  )} />
-                                </div>
-                                <div>
-                                  <p className="font-medium">{cust.name}</p>
-                                  <p className="text-sm text-gray-500 flex items-center gap-1">
-                                    <Phone className="w-3 h-3" />
-                                    {cust.phone}
-                                  </p>
-                                </div>
+                            <div key={cust.id} className="flex items-center gap-3 p-3 bg-gray-50 border border-border rounded-2xl">
+                              <div className={cn("w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0",
+                                cust.customer_type === 'VIP' ? "bg-yellow-100" : "bg-blue-100")}>
+                                <User className={cn("w-4 h-4", cust.customer_type === 'VIP' ? "text-yellow-600" : "text-blue-600")} />
                               </div>
-                              <div className="text-right">
-                                <p className="font-bold text-green-600">{formatMoney(cust.total_amount)}</p>
-                                <p className="text-sm text-gray-500">{cust.sales_count} {t('purchase')}</p>
-                                {cust.total_debt > 0 && (
-                                  <p className="text-xs text-red-500">{t('debt')}: {formatMoney(cust.total_debt)}</p>
-                                )}
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-semibold truncate">{cust.name}</p>
+                                <p className="text-xs text-gray-400">{cust.phone} · {cust.sales_count} sotuv</p>
+                              </div>
+                              <div className="text-right flex-shrink-0">
+                                <p className="text-sm font-bold text-success">{formatMoney(cust.total_amount)}</p>
+                                {cust.total_debt > 0 && <p className="text-xs text-danger">{formatMoney(cust.total_debt)}</p>}
                               </div>
                             </div>
                           ))}
                         </div>
-                      )}
-                    </CardContent>
-                  </Card>
-
-                  {/* Top Products */}
-                  <Card>
-                    <CardContent className="p-4">
-                      <button
-                        onClick={() => setExpandedSection(expandedSection === 'products' ? null : 'products')}
-                        className="w-full flex items-center justify-between"
-                      >
-                        <h3 className="font-bold text-lg flex items-center gap-2">
-                          <Package className="w-5 h-5" />
-                          {t('topProducts')} ({sellerStats.top_products?.length || 0})
-                        </h3>
-                        {expandedSection === 'products' ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
-                      </button>
-                      {expandedSection === 'products' && (
-                        <div className="mt-4 space-y-2 max-h-80 overflow-y-auto">
+                      )
+                    },
+                    {
+                      key: 'products', icon: Package, title: t('topProducts'),
+                      count: sellerStats.top_products?.length || 0,
+                      content: (
+                        <div className="space-y-2">
                           {sellerStats.top_products?.map((prod: any, idx: number) => (
-                            <div key={prod.product_id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                              <div className="flex items-center gap-3">
-                                <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center text-sm font-bold text-blue-600">
-                                  {idx + 1}
-                                </div>
-                                <div>
-                                  <p className="font-medium">{prod.product_name}</p>
-                                  <p className="text-sm text-gray-500">{prod.times_sold} {t('timesSold')}</p>
-                                </div>
+                            <div key={prod.product_id} className="flex items-center gap-3 p-3 bg-gray-50 border border-border rounded-2xl">
+                              <div className="w-8 h-8 bg-blue-100 rounded-xl flex items-center justify-center text-xs font-bold text-blue-600 flex-shrink-0">
+                                {idx + 1}
                               </div>
-                              <div className="text-right">
-                                <p className="font-bold text-green-600">{formatMoney(prod.total_revenue)}</p>
-                                <p className="text-sm text-gray-500">{formatNumber(prod.total_quantity)} {t('pieces')}</p>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-semibold truncate">{prod.product_name}</p>
+                                <p className="text-xs text-gray-400">{prod.times_sold} marta · {formatNumber(prod.total_quantity)} dona</p>
                               </div>
+                              <p className="text-sm font-bold text-success flex-shrink-0">{formatMoney(prod.total_revenue)}</p>
                             </div>
                           ))}
                         </div>
-                      )}
-                    </CardContent>
-                  </Card>
-
-                  {/* Recent Sales */}
-                  <Card>
-                    <CardContent className="p-4">
-                      <button
-                        onClick={() => setExpandedSection(expandedSection === 'sales' ? null : 'sales')}
-                        className="w-full flex items-center justify-between"
-                      >
-                        <h3 className="font-bold text-lg flex items-center gap-2">
-                          <ShoppingCart className="w-5 h-5" />
-                          {t('recentSalesTitle')} ({sellerStats.recent_sales?.length || 0})
-                        </h3>
-                        {expandedSection === 'sales' ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
-                      </button>
-                      {expandedSection === 'sales' && (
-                        <div className="mt-4 space-y-2 max-h-96 overflow-y-auto">
+                      )
+                    },
+                    {
+                      key: 'sales', icon: ShoppingCart, title: t('recentSalesTitle'),
+                      count: sellerStats.recent_sales?.length || 0,
+                      content: (
+                        <div className="space-y-2">
                           {sellerStats.recent_sales?.map((sale: any) => (
-                            <div key={sale.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                            <div key={sale.id} className="flex items-center justify-between p-3 bg-gray-50 border border-border rounded-2xl">
                               <div>
-                                <p className="font-medium">#{sale.sale_number}</p>
-                                <p className="text-sm text-gray-600">{sale.customer_name}</p>
-                                <p className="text-xs text-gray-400">
-                                  {formatDateTimeTashkent(sale.created_at)}
-                                </p>
+                                <p className="text-sm font-bold">#{sale.sale_number}</p>
+                                <p className="text-xs text-gray-500">{sale.customer_name}</p>
+                                <p className="text-xs text-gray-400">{formatDateTimeTashkent(sale.created_at)}</p>
                               </div>
                               <div className="text-right">
-                                <p className="font-bold text-green-600">{formatMoney(sale.total_amount)}</p>
-                                <p className="text-sm text-gray-500">{sale.items_count} {t('product')}</p>
+                                <p className="text-sm font-bold text-success">{formatMoney(sale.total_amount)}</p>
+                                <p className="text-xs text-gray-400">{sale.items_count} mahsulot</p>
                                 {sale.debt_amount > 0 && (
-                                  <Badge variant="danger" className="text-xs mt-1">{t('debt')}: {formatMoney(sale.debt_amount)}</Badge>
+                                  <p className="text-xs font-semibold text-danger">{formatMoney(sale.debt_amount)}</p>
                                 )}
                               </div>
                             </div>
                           ))}
                         </div>
+                      )
+                    }
+                  ].map(({ key, icon: Icon, title, count, content }) => (
+                    <div key={key} className="bg-white rounded-2xl border border-border shadow-sm overflow-hidden">
+                      <button
+                        onClick={() => setExpandedSection(expandedSection === key ? null : key)}
+                        className="w-full flex items-center justify-between p-3">
+                        <span className="text-sm font-semibold flex items-center gap-2">
+                          <Icon className="w-4 h-4 text-gray-400" />
+                          {title}
+                          <span className="text-xs text-gray-400 font-normal">({count})</span>
+                        </span>
+                        {expandedSection === key
+                          ? <ChevronUp className="w-4 h-4 text-gray-400" />
+                          : <ChevronDown className="w-4 h-4 text-gray-400" />}
+                      </button>
+                      {expandedSection === key && (
+                        <div className="px-3 pb-3 max-h-80 overflow-y-auto space-y-2 border-t border-border pt-2">
+                          {content}
+                        </div>
                       )}
-                    </CardContent>
-                  </Card>
+                    </div>
+                  ))}
                 </>
               ) : null}
             </>
@@ -946,171 +619,37 @@ export default function ReportsPage() {
 
       {/* Export Tab */}
       {activeTab === 'export' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {/* Sales Report */}
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center gap-4 mb-4">
-                <div className="p-3 bg-primary/10 rounded-pos">
-                  <DollarSign className="w-8 h-8 text-primary" />
+        <div className="space-y-2">
+          <p className="text-xs text-gray-500 px-1">Hisobot turini tanlang va yuklab oling</p>
+          {[
+            { key: 'sales',      icon: DollarSign,     bg: 'bg-blue-50',   iconColor: 'text-primary',  title: t('salesReportTitle'),   sub: t('forSelectedPeriod') },
+            { key: 'stock',      icon: Package,        bg: 'bg-orange-50', iconColor: 'text-warning',  title: t('stockReportTitle'),   sub: t('currentStatus') },
+            { key: 'debtors',    icon: Users,          bg: 'bg-red-50',    iconColor: 'text-danger',   title: t('debtorsReportTitle'), sub: t('currentDebts') },
+            { key: 'daily',      icon: Calendar,       bg: 'bg-green-50',  iconColor: 'text-success',  title: t('dailyReportTitle'),   sub: t('forToday') },
+            { key: 'price-list', icon: FileSpreadsheet,bg: 'bg-blue-50',   iconColor: 'text-primary',  title: t('priceListTitle'),     sub: t('allProducts') },
+          ].map(({ key, icon: Icon, bg, iconColor, title, sub }) => (
+            <div key={key} className="bg-white rounded-2xl border border-border shadow-sm p-3">
+              <div className="flex items-center gap-3 mb-3">
+                <div className={cn("p-2.5 rounded-2xl flex-shrink-0", bg)}>
+                  <Icon className={cn("w-5 h-5", iconColor)} />
                 </div>
                 <div>
-                  <h3 className="font-bold text-pos-lg">{t('salesReportTitle')}</h3>
-                  <p className="text-sm text-text-secondary">{t('forSelectedPeriod')}</p>
+                  <p className="text-sm font-bold">{title}</p>
+                  <p className="text-xs text-gray-400">{sub}</p>
                 </div>
               </div>
               <div className="flex gap-2">
-                <Button 
-                  variant="outline" 
-                  className="flex-1"
-                  onClick={() => handleDownloadExcel('sales')}
-                >
-                  <FileSpreadsheet className="w-4 h-4 mr-2" />
-                  Excel
-                </Button>
-                <Button 
-                  variant="outline" 
-                  className="flex-1"
-                  onClick={() => handleDownloadPDF('sales')}
-                >
-                  <FileText className="w-4 h-4 mr-2" />
-                  PDF
-                </Button>
+                <button onClick={() => handleDownloadExcel(key)}
+                  className="flex-1 flex items-center justify-center gap-1.5 h-10 rounded-xl border border-green-300 text-green-700 text-sm font-semibold active:scale-95 bg-green-50">
+                  <FileSpreadsheet className="w-4 h-4" /> Excel
+                </button>
+                <button onClick={() => handleDownloadPDF(key)}
+                  className="flex-1 flex items-center justify-center gap-1.5 h-10 rounded-xl border border-red-300 text-red-600 text-sm font-semibold active:scale-95 bg-red-50">
+                  <FileText className="w-4 h-4" /> PDF
+                </button>
               </div>
-            </CardContent>
-          </Card>
-
-          {/* Stock Report */}
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center gap-4 mb-4">
-                <div className="p-3 bg-warning/10 rounded-pos">
-                  <Package className="w-8 h-8 text-warning" />
-                </div>
-                <div>
-                  <h3 className="font-bold text-pos-lg">{t('stockReportTitle')}</h3>
-                  <p className="text-sm text-text-secondary">{t('currentStatus')}</p>
-                </div>
-              </div>
-              <div className="flex gap-2">
-                <Button 
-                  variant="outline" 
-                  className="flex-1"
-                  onClick={() => handleDownloadExcel('stock')}
-                >
-                  <FileSpreadsheet className="w-4 h-4 mr-2" />
-                  Excel
-                </Button>
-                <Button 
-                  variant="outline" 
-                  className="flex-1"
-                  onClick={() => handleDownloadPDF('stock')}
-                >
-                  <FileText className="w-4 h-4 mr-2" />
-                  PDF
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Debtors Report */}
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center gap-4 mb-4">
-                <div className="p-3 bg-danger/10 rounded-pos">
-                  <Users className="w-8 h-8 text-danger" />
-                </div>
-                <div>
-                  <h3 className="font-bold text-pos-lg">{t('debtorsReportTitle')}</h3>
-                  <p className="text-sm text-text-secondary">{t('currentDebts')}</p>
-                </div>
-              </div>
-              <div className="flex gap-2">
-                <Button 
-                  variant="outline" 
-                  className="flex-1"
-                  onClick={() => handleDownloadExcel('debtors')}
-                >
-                  <FileSpreadsheet className="w-4 h-4 mr-2" />
-                  Excel
-                </Button>
-                <Button 
-                  variant="outline" 
-                  className="flex-1"
-                  onClick={() => handleDownloadPDF('debtors')}
-                >
-                  <FileText className="w-4 h-4 mr-2" />
-                  PDF
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Daily Report */}
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center gap-4 mb-4">
-                <div className="p-3 bg-success/10 rounded-pos">
-                  <Calendar className="w-8 h-8 text-success" />
-                </div>
-                <div>
-                  <h3 className="font-bold text-pos-lg">{t('dailyReportTitle')}</h3>
-                  <p className="text-sm text-text-secondary">{t('forToday')}</p>
-                </div>
-              </div>
-              <div className="flex gap-2">
-                <Button 
-                  variant="outline" 
-                  className="flex-1"
-                  onClick={() => handleDownloadExcel('daily')}
-                >
-                  <FileSpreadsheet className="w-4 h-4 mr-2" />
-                  Excel
-                </Button>
-                <Button 
-                  variant="outline" 
-                  className="flex-1"
-                  onClick={() => handleDownloadPDF('daily')}
-                >
-                  <FileText className="w-4 h-4 mr-2" />
-                  PDF
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Price List */}
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center gap-4 mb-4">
-                <div className="p-3 bg-primary/10 rounded-pos">
-                  <FileSpreadsheet className="w-8 h-8 text-primary" />
-                </div>
-                <div>
-                  <h3 className="font-bold text-pos-lg">{t('priceListTitle')}</h3>
-                  <p className="text-sm text-text-secondary">{t('allProducts')}</p>
-                </div>
-              </div>
-              <div className="flex gap-2">
-                <Button 
-                  variant="outline" 
-                  className="flex-1"
-                  onClick={() => handleDownloadExcel('price-list')}
-                >
-                  <FileSpreadsheet className="w-4 h-4 mr-2" />
-                  Excel
-                </Button>
-                <Button 
-                  variant="outline" 
-                  className="flex-1"
-                  onClick={() => handleDownloadPDF('price-list')}
-                >
-                  <FileText className="w-4 h-4 mr-2" />
-                  PDF
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+            </div>
+          ))}
         </div>
       )}
     </div>

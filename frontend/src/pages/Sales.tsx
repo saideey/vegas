@@ -238,457 +238,438 @@ export default function SalesPage() {
   }) || []
 
   return (
-    <div className="space-y-4 lg:space-y-6">
-      {/* Header */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-xl lg:text-2xl font-bold">{t('sales')}</h1>
-          <p className="text-sm text-text-secondary">
-            {t('all')} {t('sales').toLowerCase()}
-          </p>
-        </div>
+    <div className="space-y-3">
+      {/* ── Header ── */}
+      <div className="flex items-center justify-between">
+        <h1 className="text-lg font-bold">{t('sales')}</h1>
+        {salesData?.summary && (
+          <span className="text-xs text-gray-500">{salesData.total} ta sotuv</span>
+        )}
       </div>
 
-      {/* Filters */}
-      <Card>
-        <CardContent className="p-4">
-          <div className="flex flex-wrap items-center gap-3">
-            {/* Date Range */}
-            <div className="flex items-center gap-2">
-              <Calendar className="w-4 h-4 text-text-secondary" />
-              <Input
-                type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                className="w-36"
-              />
-              <span>-</span>
-              <Input
-                type="date"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                className="w-36"
-              />
-            </div>
-
-            {/* Search */}
-            <div className="relative flex-1 min-w-[200px]">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-secondary" />
-              <Input
-                placeholder={t('search') + '...'}
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-
-            {/* Payment Status Filter */}
-            <select
-              value={paymentStatus}
-              onChange={(e) => setPaymentStatus(e.target.value)}
-              className="min-h-btn px-4 py-2 border-2 border-border rounded-pos"
-            >
-              <option value="">{t('all')}</option>
-              <option value="paid">{t('paidStatus')}</option>
-              <option value="partial">{t('partialStatus')}</option>
-              <option value="debt">{t('onCredit')}</option>
-            </select>
-
-            {/* Show Cancelled */}
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={showCancelled}
-                onChange={(e) => setShowCancelled(e.target.checked)}
-                className="w-4 h-4"
-              />
-              <span className="text-sm">{t('cancelSale')}</span>
-            </label>
+      {/* ── Filters ── */}
+      <div className="bg-white rounded-2xl border border-border p-3 space-y-2 shadow-sm">
+        {/* Date range */}
+        <div className="flex items-center gap-2">
+          <Calendar className="w-4 h-4 text-gray-400 flex-shrink-0" />
+          <input
+            type="date"
+            value={startDate}
+            onChange={(e) => setStartDate(e.target.value)}
+            className="flex-1 h-10 px-3 border border-border rounded-xl text-sm focus:outline-none focus:border-primary"
+          />
+          <span className="text-gray-400">—</span>
+          <input
+            type="date"
+            value={endDate}
+            onChange={(e) => setEndDate(e.target.value)}
+            className="flex-1 h-10 px-3 border border-border rounded-xl text-sm focus:outline-none focus:border-primary"
+          />
+        </div>
+        {/* Search + status */}
+        <div className="flex gap-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Qidirish..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-9 pr-3 h-10 border border-border rounded-xl text-sm focus:outline-none focus:border-primary"
+            />
           </div>
+          <select
+            value={paymentStatus}
+            onChange={(e) => setPaymentStatus(e.target.value)}
+            className="h-10 px-3 border border-border rounded-xl text-sm bg-white"
+          >
+            <option value="">Barchasi</option>
+            <option value="paid">To'langan</option>
+            <option value="partial">Qisman</option>
+            <option value="debt">Qarzga</option>
+          </select>
+        </div>
+        {/* Cancelled toggle */}
+        <label className="flex items-center gap-2.5 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={showCancelled}
+            onChange={(e) => setShowCancelled(e.target.checked)}
+            className="w-4 h-4 rounded accent-primary"
+          />
+          <span className="text-sm text-gray-600">Bekor qilinganlarni ko'rsatish</span>
+        </label>
+      </div>
 
-          {/* Summary */}
-          {salesData?.summary && (
-            <div className="flex flex-wrap gap-4 mt-4 pt-4 border-t border-border">
-              <div className="flex items-center gap-2">
-                <Receipt className="w-4 h-4 text-primary" />
-                <span className="text-sm text-text-secondary">{t('total')}:</span>
-                <span className="font-semibold">{salesData.total}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <DollarSign className="w-4 h-4 text-success" />
-                <span className="text-sm text-text-secondary">{t('sum')}:</span>
-                <span className="font-semibold text-success">{formatMoney(salesData.summary.total_amount)}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Banknote className="w-4 h-4 text-primary" />
-                <span className="text-sm text-text-secondary">{t('paid')}:</span>
-                <span className="font-semibold text-primary">{formatMoney(salesData.summary.total_paid)}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <CreditCard className="w-4 h-4 text-danger" />
-                <span className="text-sm text-text-secondary">{t('debt')}:</span>
-                <span className="font-semibold text-danger">{formatMoney(salesData.summary.total_debt)}</span>
-              </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Info for Sellers */}
-      {!isDirector && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 flex items-start gap-3">
-          <Info className="w-5 h-5 text-blue-600 mt-0.5 shrink-0" />
-          <div className="text-sm text-blue-800">
-            <p className="font-medium">Ma'lumot:</p>
-            <p>Siz faqat <span className="font-semibold">oxirgi sotuvingizni</span> tahrirlashingiz yoki o'chirishingiz mumkin.
-            Yangi sotuv qilganingizdan keyin avvalgi sotuvlarni o'zgartira olmaysiz.</p>
+      {/* ── Summary chips ── */}
+      {salesData?.summary && (
+        <div className="grid grid-cols-2 gap-2">
+          <div className="bg-white rounded-2xl border border-border p-3 shadow-sm">
+            <p className="text-xs text-gray-400">Jami summa</p>
+            <p className="text-sm font-bold text-primary mt-0.5">{formatMoney(salesData.summary.total_amount)}</p>
+          </div>
+          <div className="bg-white rounded-2xl border border-border p-3 shadow-sm">
+            <p className="text-xs text-gray-400">To'langan</p>
+            <p className="text-sm font-bold text-success mt-0.5">{formatMoney(salesData.summary.total_paid)}</p>
+          </div>
+          <div className="bg-white rounded-2xl border border-border p-3 shadow-sm">
+            <p className="text-xs text-gray-400">Qarz</p>
+            <p className="text-sm font-bold text-danger mt-0.5">{formatMoney(salesData.summary.total_debt)}</p>
+          </div>
+          <div className="bg-white rounded-2xl border border-border p-3 shadow-sm">
+            <p className="text-xs text-gray-400">Sotuvlar soni</p>
+            <p className="text-sm font-bold mt-0.5">{salesData.total} ta</p>
           </div>
         </div>
       )}
 
-      {/* Sales Table */}
-      <Card>
-        <CardContent className="p-0">
-          {isLoading ? (
-            <div className="flex items-center justify-center py-12">
-              <Loader2 className="w-8 h-8 animate-spin text-primary" />
-            </div>
-          ) : filteredSales.length > 0 ? (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-gray-50 border-b border-border">
-                  <tr>
-                    <th className="px-4 py-3 text-left text-sm font-medium">№</th>
-                    <th className="px-4 py-3 text-left text-sm font-medium">{t('date')}</th>
-                    <th className="px-4 py-3 text-left text-sm font-medium">{t('customer')}</th>
-                    <th className="px-4 py-3 text-left text-sm font-medium">{t('seller')}</th>
-                    <th className="px-4 py-3 text-right text-sm font-medium">{t('amount')}</th>
-                    <th className="px-4 py-3 text-right text-sm font-medium">{t('paidAmount')}</th>
-                    <th className="px-4 py-3 text-right text-sm font-medium">{t('debt')}</th>
-                    <th className="px-4 py-3 text-center text-sm font-medium">{t('status')}</th>
-                    <th className="px-4 py-3 text-center text-sm font-medium">{t('actions')}</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {filteredSales.map((sale: Sale) => (
-                    <tr key={sale.id} className={cn(
-                      "hover:bg-gray-50",
-                      sale.is_cancelled && "bg-gray-100 opacity-60",
-                      sale.can_edit && !isDirector && "bg-green-50/50" // Highlight editable sale for sellers
-                    )}>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-2">
-                          <span className="font-mono text-sm">{sale.sale_number}</span>
-                          {sale.can_edit && !isDirector && !sale.is_cancelled && (
-                            <Badge variant="secondary" className="text-[10px] px-1.5 py-0 bg-green-100 text-green-700">
-                              {t('lastSale')}
-                            </Badge>
-                          )}
-                        </div>
-                        {sale.updated_by && (
-                          <div className="text-xs text-warning flex items-center gap-1 mt-1">
-                            <Pencil className="w-3 h-3" />
-                            {t('edited')}
-                          </div>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-sm">
-                        <div>{formatDateTashkent(sale.sale_date)}</div>
-                        <div className="text-xs text-text-secondary">
-                          {formatTimeTashkent(sale.created_at)}
-                        </div>
-                      </td>
-                      <td className="px-4 py-3">
-                        {sale.customer_id && sale.customer_name ? (
-                          <>
-                            <p className="font-medium">{sale.customer_name}</p>
-                            {sale.customer_phone && (
-                              <p className="text-xs text-text-secondary flex items-center gap-1">
-                                <Phone className="w-3 h-3" />
-                                {sale.customer_phone}
-                              </p>
-                            )}
-                          </>
-                        ) : (sale.contact_phone || sale.customer_phone) ? (
-                          <p className="font-medium flex items-center gap-1.5">
-                            <Phone className="w-3.5 h-3.5 text-blue-500" />
-                            {sale.contact_phone || sale.customer_phone}
-                          </p>
-                        ) : (
-                          <p className="text-text-secondary text-sm">{t('unknownCustomer')}</p>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-sm text-text-secondary">
-                        {sale.seller_name}
-                      </td>
-                      <td className="px-4 py-3 text-right font-semibold">
-                        {formatMoney(sale.total_amount)}
-                      </td>
-                      <td className="px-4 py-3 text-right text-success font-semibold">
-                        {formatMoney(sale.paid_amount)}
-                      </td>
-                      <td className="px-4 py-3 text-right text-danger font-semibold">
-                        {sale.debt_amount > 0 ? formatMoney(sale.debt_amount) : '-'}
-                      </td>
-                      <td className="px-4 py-3 text-center">
-                        {sale.is_cancelled ? (
-                          <Badge variant="secondary">{t('cancelled')}</Badge>
-                        ) : (
-                          getStatusBadge(sale.payment_status)
-                        )}
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center justify-center gap-1">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="p-1 h-8 w-8"
-                            onClick={() => viewSale(sale.id)}
-                          >
-                            <Eye className="w-4 h-4 text-primary" />
-                          </Button>
-                          {/* Edit/Delete - Director yoki sotuvchining oxirgi sotuvi uchun */}
-                          {sale.can_edit && !sale.is_cancelled && (
-                            <>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="p-1 h-8 w-8"
-                                onClick={() => handleEditSale(sale.id)}
-                                disabled={loadingEditSale === sale.id}
-                                title={isDirector ? "Tahrirlash" : "Oxirgi sotuvni tahrirlash"}
-                              >
-                                {loadingEditSale === sale.id ? (
-                                  <Loader2 className="w-4 h-4 animate-spin text-warning" />
-                                ) : (
-                                  <Edit3 className="w-4 h-4 text-warning" />
-                                )}
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="p-1 h-8 w-8"
-                                onClick={() => setDeletingSale({ id: sale.id, sale_number: sale.sale_number })}
-                                title={isDirector ? "O'chirish" : "Oxirgi sotuvni o'chirish"}
-                              >
-                                <Trash2 className="w-4 h-4 text-danger" />
-                              </Button>
-                            </>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            <div className="text-center py-12">
-              <Receipt className="w-16 h-16 mx-auto text-text-secondary opacity-50 mb-4" />
-              <p className="text-text-secondary">{t('noSalesFound')}</p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      {/* ── Seller info ── */}
+      {!isDirector && (
+        <div className="bg-blue-50 border border-blue-200 rounded-2xl p-3 flex items-start gap-2.5">
+          <Info className="w-4 h-4 text-blue-500 mt-0.5 flex-shrink-0" />
+          <p className="text-xs text-blue-800">
+            Faqat <b>oxirgi sotuvingizni</b> tahrirlash yoki o'chirish mumkin.
+          </p>
+        </div>
+      )}
 
-      {/* Pagination */}
+      {/* ── Sales list ── */}
+      {isLoading ? (
+        <div className="flex items-center justify-center py-16">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        </div>
+      ) : filteredSales.length > 0 ? (
+        <div className="space-y-2">
+          {filteredSales.map((sale: Sale) => (
+            <div
+              key={sale.id}
+              className={cn(
+                "bg-white rounded-2xl border shadow-sm p-3 transition-all",
+                sale.is_cancelled ? "opacity-60 border-gray-200" : "border-border",
+                sale.can_edit && !isDirector && !sale.is_cancelled ? "border-l-4 border-l-success" : ""
+              )}
+            >
+              {/* Row 1: number + date + status + actions */}
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="font-mono text-sm font-bold">#{sale.sale_number}</span>
+                    {sale.is_cancelled ? (
+                      <span className="text-xs px-2 py-0.5 bg-gray-100 text-gray-500 rounded-lg">Bekor</span>
+                    ) : (
+                      getStatusBadge(sale.payment_status)
+                    )}
+                    {sale.updated_by && (
+                      <span className="text-xs text-warning flex items-center gap-0.5">
+                        <Pencil className="w-3 h-3" />Tahrirlangan
+                      </span>
+                    )}
+                    {sale.can_edit && !isDirector && !sale.is_cancelled && (
+                      <span className="text-xs px-1.5 py-0.5 bg-green-100 text-green-700 rounded-lg font-medium">Oxirgi</span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2 mt-1 text-xs text-gray-400">
+                    <Calendar className="w-3 h-3" />
+                    <span>{formatDateTashkent(sale.sale_date)}</span>
+                    <span>·</span>
+                    <span>{formatTimeTashkent(sale.created_at)}</span>
+                    <span>·</span>
+                    <span>{sale.seller_name}</span>
+                  </div>
+                </div>
+                {/* Actions */}
+                <div className="flex items-center gap-1 flex-shrink-0">
+                  <button
+                    onClick={() => viewSale(sale.id)}
+                    className="w-8 h-8 flex items-center justify-center rounded-xl border border-border text-primary active:bg-blue-50"
+                  >
+                    <Eye className="w-4 h-4" />
+                  </button>
+                  {sale.can_edit && !sale.is_cancelled && (
+                    <>
+                      <button
+                        onClick={() => handleEditSale(sale.id)}
+                        disabled={loadingEditSale === sale.id}
+                        className="w-8 h-8 flex items-center justify-center rounded-xl border border-orange-200 text-warning active:bg-orange-50 disabled:opacity-40"
+                      >
+                        {loadingEditSale === sale.id
+                          ? <Loader2 className="w-4 h-4 animate-spin" />
+                          : <Edit3 className="w-4 h-4" />}
+                      </button>
+                      <button
+                        onClick={() => setDeletingSale({ id: sale.id, sale_number: sale.sale_number })}
+                        className="w-8 h-8 flex items-center justify-center rounded-xl border border-red-200 text-danger active:bg-red-50"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              {/* Row 2: customer */}
+              <div className="mt-2 flex items-center gap-2">
+                {sale.customer_id && sale.customer_name ? (
+                  <span className="text-sm font-medium">{sale.customer_name}</span>
+                ) : (sale.contact_phone || sale.customer_phone) ? (
+                  <a href={`tel:${sale.contact_phone || sale.customer_phone}`}
+                    className="text-sm font-medium text-blue-600 flex items-center gap-1">
+                    <Phone className="w-3.5 h-3.5" />
+                    {sale.contact_phone || sale.customer_phone}
+                  </a>
+                ) : (
+                  <span className="text-sm text-gray-400">Noma'lum mijoz</span>
+                )}
+              </div>
+
+              {/* Row 3: amounts */}
+              <div className="flex items-center gap-2 mt-2 flex-wrap">
+                <div className="flex items-center gap-1 bg-gray-50 rounded-xl px-2.5 py-1.5">
+                  <span className="text-xs text-gray-400">Jami:</span>
+                  <span className="text-sm font-bold whitespace-nowrap">{formatMoney(sale.total_amount)}</span>
+                </div>
+                <div className="flex items-center gap-1 bg-green-50 rounded-xl px-2.5 py-1.5">
+                  <span className="text-xs text-gray-400">To'langan:</span>
+                  <span className="text-sm font-bold text-success whitespace-nowrap">{formatMoney(sale.paid_amount)}</span>
+                </div>
+                {sale.debt_amount > 0 && (
+                  <div className="flex items-center gap-1 bg-red-50 rounded-xl px-2.5 py-1.5">
+                    <span className="text-xs text-gray-400">Qarz:</span>
+                    <span className="text-sm font-bold text-danger whitespace-nowrap">{formatMoney(sale.debt_amount)}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="flex flex-col items-center justify-center py-16 text-text-secondary">
+          <Receipt className="w-16 h-16 mb-4 opacity-30" />
+          <p>{t('noSalesFound')}</p>
+        </div>
+      )}
+
+      {/* ── Pagination ── */}
       {salesData && salesData.total > 20 && (
-        <div className="flex items-center justify-center gap-2">
-          <Button variant="outline" disabled={page === 1} onClick={() => setPage(page - 1)}>
-            {t('previous')}
-          </Button>
-          <span className="px-4">{page}</span>
-          <Button variant="outline" onClick={() => setPage(page + 1)}>
-            {t('next')}
-          </Button>
+        <div className="flex items-center justify-between bg-white rounded-2xl border border-border px-4 py-3 shadow-sm">
+          <span className="text-sm text-gray-500">Sahifa {page}</span>
+          <div className="flex gap-2">
+            <button
+              disabled={page === 1}
+              onClick={() => setPage(page - 1)}
+              className="px-4 py-2 rounded-xl border border-border text-sm font-medium disabled:opacity-40 active:bg-gray-100"
+            >← Oldingi</button>
+            <button
+              onClick={() => setPage(page + 1)}
+              className="px-4 py-2 rounded-xl border border-border text-sm font-medium active:bg-gray-100"
+            >Keyingi →</button>
+          </div>
         </div>
       )}
 
       {/* View Sale Dialog */}
       <Dialog open={!!viewingSale} onOpenChange={() => setViewingSale(null)}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Receipt className="w-5 h-5 text-primary" />
-              {t('sales')} #{viewingSale?.sale_number}
-            </DialogTitle>
-          </DialogHeader>
-
-          {viewingSale && (
-            <div className="space-y-4">
-              {/* Sale Info */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <p className="text-sm text-text-secondary">{t('date')}</p>
-                  <p className="font-medium">{formatDateTashkent(viewingSale.sale_date)}</p>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-sm text-text-secondary">{t('seller')}</p>
-                  <p className="font-medium">{viewingSale.seller_name}</p>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-sm text-text-secondary">{t('customer')}</p>
-                  {viewingSale.customer_id && viewingSale.customer_name ? (
-                    <>
-                      <p className="font-medium">{viewingSale.customer_name}</p>
-                      {viewingSale.customer_phone && (
-                        <p className="text-sm text-text-secondary flex items-center gap-1">
-                          <Phone className="w-3 h-3" />
-                          {viewingSale.customer_phone}
-                        </p>
-                      )}
-                    </>
-                  ) : (viewingSale.contact_phone || viewingSale.customer_phone) ? (
-                    <p className="font-medium flex items-center gap-1.5">
-                      <Phone className="w-3.5 h-3.5 text-blue-500" />
-                      {viewingSale.contact_phone || viewingSale.customer_phone}
-                    </p>
-                  ) : (
-                    <p className="font-medium text-text-secondary">{t('unknownCustomer')}</p>
-                  )}
-                </div>
-                <div className="space-y-1">
-                  <p className="text-sm text-text-secondary">{t('warehouse')}</p>
-                  <p className="font-medium">{viewingSale.warehouse_name}</p>
-                </div>
-              </div>
-
-              {/* Items */}
-              <div className="border border-border rounded-pos overflow-hidden">
-                <div className="bg-gray-50 px-4 py-2 font-medium">{t('products')}</div>
-                <table className="w-full">
-                  <thead className="bg-gray-50 border-t border-border">
-                    <tr>
-                      <th className="px-4 py-2 text-left text-sm">{t('product')}</th>
-                      <th className="px-4 py-2 text-right text-sm">{t('quantity')}</th>
-                      <th className="px-4 py-2 text-right text-sm">{t('price')}</th>
-                      <th className="px-4 py-2 text-right text-sm">{t('total')}</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border">
-                    {viewingSale.items.map((item) => (
-                      <tr key={item.id}>
-                        <td className="px-4 py-2">{item.product_name}</td>
-                        <td className="px-4 py-2 text-right">{formatNumber(item.quantity)} {item.uom_symbol}</td>
-                        <td className="px-4 py-2 text-right">{formatMoney(item.unit_price)}</td>
-                        <td className="px-4 py-2 text-right font-semibold">{formatMoney(item.total_price)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-
-              {/* Totals */}
-              <div className="bg-gray-50 rounded-pos p-4 space-y-2">
-                <div className="flex justify-between">
-                  <span>{t('subtotal')}:</span>
-                  <span className="font-semibold">{formatMoney(viewingSale.subtotal)}</span>
-                </div>
-                {viewingSale.discount_amount > 0 && (
-                  <div className="flex justify-between text-success">
-                    <span>{t('discount')} ({viewingSale.discount_percent.toFixed(1)}%):</span>
-                    <span>-{formatMoney(viewingSale.discount_amount)}</span>
-                  </div>
-                )}
-                <div className="flex justify-between text-lg font-bold border-t border-border pt-2">
-                  <span>{t('grandTotal')}:</span>
-                  <span className="text-primary">{formatMoney(viewingSale.total_amount)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>{t('paidAmount')}:</span>
-                  <span className="text-success font-semibold">{formatMoney(viewingSale.paid_amount)}</span>
-                </div>
-                {viewingSale.debt_amount > 0 && (
-                  <div className="flex justify-between">
-                    <span>{t('debt')}:</span>
-                    <span className="text-danger font-semibold">{formatMoney(viewingSale.debt_amount)}</span>
-                  </div>
+        <DialogContent className="w-full max-w-lg h-[100dvh] sm:h-auto sm:max-h-[90vh] flex flex-col p-0 gap-0 rounded-none sm:rounded-2xl">
+          {/* Header */}
+          <div className="flex-shrink-0 flex items-center justify-between px-4 pt-4 pb-3 border-b border-border">
+            <div>
+              <div className="flex items-center gap-2">
+                <Receipt className="w-4 h-4 text-primary" />
+                <h2 className="text-base font-bold">#{viewingSale?.sale_number}</h2>
+                {viewingSale && !viewingSale.is_cancelled && getStatusBadge(viewingSale.payment_status)}
+                {viewingSale?.is_cancelled && (
+                  <span className="text-xs px-2 py-0.5 bg-gray-100 text-gray-500 rounded-lg">Bekor</span>
                 )}
               </div>
-
-              {/* Edit Info */}
-              {viewingSale.updated_by && (
-                <div className="bg-warning/10 p-3 rounded-lg text-sm">
-                  <div className="flex items-start gap-2">
-                    <Pencil className="w-4 h-4 text-warning mt-0.5" />
-                    <div>
-                      <p className="font-medium text-warning">{t('edited')}</p>
-                      <p>{t('editedBy')}: {viewingSale.updated_by}</p>
-                      <p>{t('editedWhen')}: {formatDateTimeTashkent(viewingSale.updated_at)}</p>
-                      {viewingSale.edit_reason && <p>{t('reason')}: {viewingSale.edit_reason}</p>}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Cancelled Info */}
-              {viewingSale.is_cancelled && (
-                <div className="bg-danger/10 p-3 rounded-lg text-sm">
-                  <div className="flex items-start gap-2">
-                    <X className="w-4 h-4 text-danger mt-0.5" />
-                    <div>
-                      <p className="font-medium text-danger">{t('cancelledStatus')}</p>
-                      <p>{t('cancelledBy')}: {viewingSale.cancelled_by}</p>
-                      <p>{t('cancelledWhen')}: {formatDateTimeTashkent(viewingSale.cancelled_at)}</p>
-                      {viewingSale.cancelled_reason && <p>{t('reason')}: {viewingSale.cancelled_reason}</p>}
-                    </div>
-                  </div>
-                </div>
+              {viewingSale && (
+                <p className="text-xs text-gray-400 mt-0.5">
+                  {formatDateTashkent(viewingSale.sale_date)} · {formatTimeTashkent(viewingSale.created_at)}
+                </p>
               )}
             </div>
-          )}
+            <button onClick={() => setViewingSale(null)}
+              className="w-8 h-8 flex items-center justify-center rounded-xl border border-border text-gray-400 active:bg-gray-100">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
 
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setViewingSale(null)}>{t('close')}</Button>
-          </DialogFooter>
+          {/* Body */}
+          <div className="flex-1 overflow-y-auto p-4 space-y-4">
+            {viewingSale && (
+              <>
+                {/* Info chips */}
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="bg-gray-50 rounded-2xl p-3">
+                    <p className="text-xs text-gray-400">Sotuvchi</p>
+                    <p className="text-sm font-semibold mt-0.5">{viewingSale.seller_name}</p>
+                  </div>
+                  <div className="bg-gray-50 rounded-2xl p-3">
+                    <p className="text-xs text-gray-400">Ombor</p>
+                    <p className="text-sm font-semibold mt-0.5">{viewingSale.warehouse_name}</p>
+                  </div>
+                  <div className="bg-gray-50 rounded-2xl p-3 col-span-2">
+                    <p className="text-xs text-gray-400">Mijoz</p>
+                    {viewingSale.customer_id && viewingSale.customer_name ? (
+                      <div className="mt-0.5">
+                        <p className="text-sm font-semibold">{viewingSale.customer_name}</p>
+                        {viewingSale.customer_phone && (
+                          <a href={`tel:${viewingSale.customer_phone}`}
+                            className="text-xs text-blue-600 flex items-center gap-1 mt-0.5">
+                            <Phone className="w-3 h-3" />{viewingSale.customer_phone}
+                          </a>
+                        )}
+                      </div>
+                    ) : (viewingSale.contact_phone || viewingSale.customer_phone) ? (
+                      <a href={`tel:${viewingSale.contact_phone || viewingSale.customer_phone}`}
+                        className="text-sm font-semibold text-blue-600 flex items-center gap-1 mt-0.5">
+                        <Phone className="w-3.5 h-3.5" />
+                        {viewingSale.contact_phone || viewingSale.customer_phone}
+                      </a>
+                    ) : (
+                      <p className="text-sm text-gray-400 mt-0.5">Noma'lum mijoz</p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Items */}
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Tovarlar</p>
+                  {viewingSale.items.map((item) => (
+                    <div key={item.id} className="flex items-center justify-between gap-3 p-3 bg-gray-50 rounded-2xl">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold truncate">{item.product_name}</p>
+                        <p className="text-xs text-gray-400 mt-0.5">
+                          {formatNumber(item.quantity)} {item.uom_symbol} × {formatMoney(item.unit_price)}
+                        </p>
+                      </div>
+                      <p className="text-sm font-bold text-primary whitespace-nowrap">{formatMoney(item.total_price)}</p>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Totals */}
+                <div className="bg-gradient-to-br from-blue-50 to-green-50 rounded-2xl p-4 space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600">Subtotal</span>
+                    <span className="text-sm font-semibold">{formatMoney(viewingSale.subtotal)}</span>
+                  </div>
+                  {viewingSale.discount_amount > 0 && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-success">Chegirma ({viewingSale.discount_percent.toFixed(1)}%)</span>
+                      <span className="text-sm font-semibold text-success">−{formatMoney(viewingSale.discount_amount)}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between items-center border-t border-white/60 pt-2">
+                    <span className="text-base font-bold">Jami</span>
+                    <span className="text-base font-bold text-primary">{formatMoney(viewingSale.total_amount)}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600">To'langan</span>
+                    <span className="text-sm font-bold text-success">{formatMoney(viewingSale.paid_amount)}</span>
+                  </div>
+                  {viewingSale.debt_amount > 0 && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-gray-600">Qarz</span>
+                      <span className="text-sm font-bold text-danger">{formatMoney(viewingSale.debt_amount)}</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Edit info */}
+                {viewingSale.updated_by && (
+                  <div className="bg-orange-50 border border-orange-200 rounded-2xl p-3">
+                    <div className="flex items-start gap-2">
+                      <Pencil className="w-4 h-4 text-warning mt-0.5 flex-shrink-0" />
+                      <div className="text-xs text-orange-800 space-y-0.5">
+                        <p className="font-semibold">Tahrirlangan</p>
+                        <p>{viewingSale.updated_by} · {formatDateTimeTashkent(viewingSale.updated_at)}</p>
+                        {viewingSale.edit_reason && <p>Sabab: {viewingSale.edit_reason}</p>}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Cancelled info */}
+                {viewingSale.is_cancelled && (
+                  <div className="bg-red-50 border border-red-200 rounded-2xl p-3">
+                    <div className="flex items-start gap-2">
+                      <X className="w-4 h-4 text-danger mt-0.5 flex-shrink-0" />
+                      <div className="text-xs text-red-800 space-y-0.5">
+                        <p className="font-semibold">Bekor qilingan</p>
+                        <p>{viewingSale.cancelled_by} · {formatDateTimeTashkent(viewingSale.cancelled_at)}</p>
+                        {viewingSale.cancelled_reason && <p>Sabab: {viewingSale.cancelled_reason}</p>}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+
+          {/* Footer */}
+          <div className="flex-shrink-0 px-4 pb-4 pt-3 border-t border-border">
+            <button
+              onClick={() => setViewingSale(null)}
+              className="w-full h-12 rounded-2xl border-2 border-border text-sm font-semibold text-gray-600 active:bg-gray-50"
+            >
+              Yopish
+            </button>
+          </div>
         </DialogContent>
       </Dialog>
 
-      {/* Delete Sale Dialog (Director only) */}
-      <Dialog open={!!deletingSale} onOpenChange={() => { setDeletingSale(null); setDeleteReason(''); }}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-danger">
-              <Trash2 className="w-5 h-5" />
-              {t('deleteSaleTitle')}
-            </DialogTitle>
-            <DialogDescription>
-              {t('sales')} #{deletingSale?.sale_number} {t('confirmDeleteSale')}
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4">
-            <div className="bg-danger/10 p-3 rounded-lg text-sm">
-              <div className="flex items-start gap-2">
-                <AlertTriangle className="w-4 h-4 text-danger mt-0.5" />
-                <div>
-                  <p className="font-medium text-danger">{t('attentionWarning')}</p>
-                  <p>{t('saleDeleteWarning')}</p>
-                </div>
+      {/* Delete Sale Dialog */}
+      <Dialog open={!!deletingSale} onOpenChange={() => { setDeletingSale(null); setDeleteReason('') }}>
+        <DialogContent className="w-full max-w-sm p-0 gap-0 rounded-2xl overflow-hidden">
+          <div className="p-4 space-y-4">
+            {/* Header */}
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 bg-red-100 rounded-2xl">
+                <Trash2 className="w-5 h-5 text-danger" />
+              </div>
+              <div>
+                <h3 className="font-bold text-base">Sotuvni o'chirish</h3>
+                <p className="text-xs text-gray-500">#{deletingSale?.sale_number}</p>
               </div>
             </div>
 
-            <div className="space-y-2">
-              <label className="font-medium text-sm">{t('deleteReasonLabel')} *</label>
-              <Input
+            {/* Warning */}
+            <div className="bg-red-50 border border-red-200 rounded-2xl p-3 flex items-start gap-2">
+              <AlertTriangle className="w-4 h-4 text-danger mt-0.5 flex-shrink-0" />
+              <p className="text-xs text-red-800">{t('saleDeleteWarning')}</p>
+            </div>
+
+            {/* Reason */}
+            <div className="space-y-1.5">
+              <label className="text-sm font-semibold">Sabab *</label>
+              <input
+                type="text"
                 value={deleteReason}
                 onChange={(e) => setDeleteReason(e.target.value)}
-                placeholder={t('enterReasonRequired')}
+                placeholder="O'chirish sababini kiriting..."
+                className="w-full h-11 px-3 border border-border rounded-xl text-sm focus:outline-none focus:border-danger"
               />
             </div>
-          </div>
 
-          <DialogFooter>
-            <Button variant="outline" onClick={() => { setDeletingSale(null); setDeleteReason(''); }}>{t('cancel')}</Button>
-            <Button
-              variant="danger"
-              onClick={() => deletingSale && deleteSaleMutation.mutate({ id: deletingSale.id, reason: deleteReason })}
-              disabled={deleteSaleMutation.isPending || !deleteReason.trim()}
-            >
-              {deleteSaleMutation.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Trash2 className="w-4 h-4 mr-2" />}
-              {t('delete')}
-            </Button>
-          </DialogFooter>
+            {/* Buttons */}
+            <div className="flex gap-3">
+              <button
+                onClick={() => { setDeletingSale(null); setDeleteReason('') }}
+                className="flex-1 h-12 rounded-2xl border-2 border-border text-sm font-semibold text-gray-600 active:bg-gray-50"
+              >
+                Bekor
+              </button>
+              <button
+                onClick={() => deletingSale && deleteSaleMutation.mutate({ id: deletingSale.id, reason: deleteReason })}
+                disabled={deleteSaleMutation.isPending || !deleteReason.trim()}
+                className="flex-1 h-12 rounded-2xl bg-danger text-white text-sm font-semibold disabled:opacity-50 active:scale-[0.98] flex items-center justify-center gap-2"
+              >
+                {deleteSaleMutation.isPending
+                  ? <><Loader2 className="w-4 h-4 animate-spin" />O'chirilmoqda...</>
+                  : <><Trash2 className="w-4 h-4" />O'chirish</>}
+              </button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

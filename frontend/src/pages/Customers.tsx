@@ -1134,122 +1134,115 @@ export default function CustomersPage() {
   return (
     <div className="space-y-4 lg:space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 lg:gap-4">
-        <h1 className="text-xl lg:text-pos-xl font-bold">{t('customers')}</h1>
-        <div className="flex gap-2">
-          <Button size="lg" variant="outline" onClick={() => setShowCategoryManager(true)} className="border-2 border-purple-400 text-purple-700 hover:bg-purple-50">
-            <Tag className="w-5 h-5 mr-2" />
-            Kategoriyalar
-          </Button>
-          <Button size="lg" onClick={() => { setEditingCustomer(null); reset(); setDebtAmountDisplay(''); setValue('manager_id', currentUser?.id || ''); setShowAddDialog(true) }} className="w-full sm:w-auto">
-            <Plus className="w-5 h-5 mr-2" />
-            {t('addCustomer')}
-          </Button>
+      <div className="flex items-center justify-between gap-2">
+        <h1 className="text-lg font-bold">{t('customers')}</h1>
+        <div className="flex items-center gap-2">
+          <button onClick={() => setShowCategoryManager(true)}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl border-2 border-purple-400 text-purple-700 text-sm font-semibold active:scale-95 transition-all">
+            <Tag className="w-4 h-4" />
+            <span className="hidden sm:inline">Kategoriyalar</span>
+          </button>
+          <button onClick={() => { setEditingCustomer(null); reset(); setDebtAmountDisplay(''); setValue('manager_id', currentUser?.id || ''); setShowAddDialog(true) }}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-primary text-white text-sm font-semibold active:scale-95 transition-all">
+            <Plus className="w-4 h-4" />
+            <span>Qo'shish</span>
+          </button>
         </div>
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-3 gap-2 lg:gap-4">
-        <Card>
-          <CardContent className="p-2.5 lg:p-4 flex flex-col lg:flex-row items-center gap-2 lg:gap-4">
-            <div className="p-2 lg:p-3 bg-primary/10 rounded-xl">
-              <User className="w-4 h-4 lg:w-6 lg:h-6 text-primary" />
-            </div>
-            <div className="text-center lg:text-left">
-              <p className="text-xs lg:text-sm text-text-secondary">{t('customers')}</p>
-              <p className="text-sm lg:text-pos-lg font-bold">{customersData?.total || 0}</p>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-2.5 lg:p-4 flex flex-col lg:flex-row items-center gap-2 lg:gap-4">
-            <div className="p-2 lg:p-3 bg-danger/10 rounded-xl">
-              <CreditCard className="w-4 h-4 lg:w-6 lg:h-6 text-danger" />
-            </div>
-            <div className="text-center lg:text-left">
-              <p className="text-xs lg:text-sm text-text-secondary">{t('debt')}</p>
-              <p className="text-sm lg:text-pos-lg font-bold">{debtorsData?.data?.length || 0}</p>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-2.5 lg:p-4 flex flex-col lg:flex-row items-center gap-2 lg:gap-4">
-            <div className="p-2 lg:p-3 bg-warning/10 rounded-xl">
-              <Banknote className="w-4 h-4 lg:w-6 lg:h-6 text-warning" />
-            </div>
-            <div className="text-center lg:text-left min-w-0">
-              <p className="text-xs lg:text-sm text-text-secondary">{t('totalDebt')}</p>
-              <p className="text-xs lg:text-sm font-bold text-danger truncate">{formatMoney(debtorsData?.total_debt || 0)}</p>
-              {Number(debtorsData?.total_debt_usd || 0) > 0 && (
-                <p className="text-xs font-bold text-blue-600 truncate">
-                  ${Number(debtorsData?.total_debt_usd || 0).toLocaleString('ru-RU', {minimumFractionDigits:2, maximumFractionDigits:2})}
-                </p>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+      <div className="grid grid-cols-3 gap-2">
+        <div className="bg-white rounded-2xl p-3 border border-border flex flex-col items-center gap-1 shadow-sm">
+          <div className="p-2 bg-blue-50 rounded-xl">
+            <User className="w-5 h-5 text-primary" />
+          </div>
+          <p className="text-xs text-text-secondary leading-none">Mijozlar</p>
+          <p className="text-base font-bold leading-none">{customersData?.total || 0}</p>
+        </div>
+        <div className="bg-white rounded-2xl p-3 border border-border flex flex-col items-center gap-1 shadow-sm">
+          <div className="p-2 bg-red-50 rounded-xl">
+            <CreditCard className="w-5 h-5 text-danger" />
+          </div>
+          <p className="text-xs text-text-secondary leading-none">Qarzdor</p>
+          <p className="text-base font-bold leading-none">{debtorsData?.data?.length || 0}</p>
+        </div>
+        <div className="bg-white rounded-2xl p-3 border border-border flex flex-col items-center gap-1 shadow-sm min-w-0">
+          <div className="p-2 bg-orange-50 rounded-xl">
+            <Banknote className="w-5 h-5 text-warning" />
+          </div>
+          <p className="text-xs text-text-secondary leading-none">Jami qarz</p>
+          <p className="text-xs font-bold text-danger truncate w-full text-center">{formatMoney(debtorsData?.total_debt || 0)}</p>
+          {Number(debtorsData?.total_debt_usd || 0) > 0 && (
+            <p className="text-xs font-bold text-blue-600 truncate w-full text-center">
+              ${Number(debtorsData?.total_debt_usd || 0).toLocaleString('ru-RU', {minimumFractionDigits:2, maximumFractionDigits:2})}
+            </p>
+          )}
+        </div>
       </div>
 
       {/* Filters */}
-      <Card>
-        <CardContent className="p-3 lg:p-4">
-          <div className="flex flex-col sm:flex-row gap-2 lg:gap-4 items-stretch sm:items-center">
-            <div className="flex-1">
-              <Input
-                icon={<Search className="w-4 h-4 lg:w-5 lg:h-5" />}
-                placeholder={t('search') + '...'}
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="text-sm lg:text-base"
-              />
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <select
-                className="flex-1 sm:flex-none min-h-[44px] lg:min-h-btn px-3 lg:px-4 py-2 lg:py-3 border-2 border-border rounded-xl text-sm lg:text-pos-base"
-                value={filterType}
-                onChange={(e) => setFilterType(e.target.value)}
-              >
-                <option value="">{t('all')}</option>
-                <option value="REGULAR">{t('retail')}</option>
-                <option value="VIP">VIP</option>
-                <option value="WHOLESALE">{t('wholesale')}</option>
-              </select>
-              <select
-                className="flex-1 sm:flex-none min-h-[44px] lg:min-h-btn px-3 lg:px-4 py-2 lg:py-3 border-2 border-border rounded-xl text-sm lg:text-pos-base"
-                value={filterSellerId}
-                onChange={(e) => setFilterSellerId(e.target.value ? Number(e.target.value) : '')}
-              >
-                <option value="">{t('all')} {t('seller').toLowerCase()}</option>
-                {sellersData?.data?.map((seller: UserType) => (
-                  <option key={seller.id} value={seller.id}>
-                    {seller.first_name} {seller.last_name}
-                  </option>
-                ))}
-              </select>
-              <select
-                className="flex-1 sm:flex-none min-h-[44px] lg:min-h-btn px-3 lg:px-4 py-2 lg:py-3 border-2 border-purple-300 rounded-xl text-sm lg:text-pos-base"
-                value={filterCategoryId}
-                onChange={(e) => { setFilterCategoryId(e.target.value ? Number(e.target.value) : ''); setPage(1) }}
-              >
-                <option value="">Barcha kategoriyalar</option>
-                {categories.map((cat: any) => (
-                  <option key={cat.id} value={cat.id}>{cat.name}</option>
-                ))}
-              </select>
-              <Button
-                variant={showDebtorsOnly ? 'danger' : 'outline'}
-                onClick={() => setShowDebtorsOnly(!showDebtorsOnly)}
-                className="text-sm lg:text-base"
-              >
-                <CreditCard className="w-4 h-4 lg:w-5 lg:h-5 lg:mr-2" />
-                <span className="hidden lg:inline">Faqat qarzdorlar</span>
-              </Button>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      <div className="bg-white rounded-2xl border border-border p-3 space-y-2 shadow-sm">
+        {/* Search */}
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Qidirish..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-9 pr-4 py-2.5 border border-border rounded-xl text-sm focus:outline-none focus:border-primary"
+          />
+        </div>
+        {/* Selects row */}
+        <div className="grid grid-cols-2 gap-2">
+          <select
+            className="h-10 px-3 border border-border rounded-xl text-sm bg-white"
+            value={filterType}
+            onChange={(e) => setFilterType(e.target.value)}
+          >
+            <option value="">Barchasi</option>
+            <option value="REGULAR">Oddiy</option>
+            <option value="VIP">VIP</option>
+            <option value="WHOLESALE">Ulgurji</option>
+          </select>
+          <select
+            className="h-10 px-3 border border-border rounded-xl text-sm bg-white"
+            value={filterSellerId}
+            onChange={(e) => setFilterSellerId(e.target.value ? Number(e.target.value) : '')}
+          >
+            <option value="">Barcha sotuvchi</option>
+            {sellersData?.data?.map((seller: UserType) => (
+              <option key={seller.id} value={seller.id}>
+                {seller.first_name} {seller.last_name}
+              </option>
+            ))}
+          </select>
+        </div>
+        {/* Category + filter button */}
+        <div className="flex gap-2">
+          <select
+            className="flex-1 h-10 px-3 border border-purple-300 rounded-xl text-sm bg-white"
+            value={filterCategoryId}
+            onChange={(e) => { setFilterCategoryId(e.target.value ? Number(e.target.value) : ''); setPage(1) }}
+          >
+            <option value="">Barcha kategoriyalar</option>
+            {categories.map((cat: any) => (
+              <option key={cat.id} value={cat.id}>{cat.name}</option>
+            ))}
+          </select>
+          <button
+            onClick={() => setShowDebtorsOnly(!showDebtorsOnly)}
+            className={`flex items-center gap-1.5 px-3 h-10 rounded-xl border text-sm font-medium transition-all active:scale-95 ${
+              showDebtorsOnly
+                ? 'bg-danger text-white border-danger'
+                : 'bg-white text-gray-600 border-border'
+            }`}
+          >
+            <CreditCard className="w-4 h-4" />
+            <span>Qarzdorlar</span>
+          </button>
+        </div>
+      </div>
 
       {/* Customers List */}
       {isLoading ? (
@@ -1259,18 +1252,14 @@ export default function CustomersPage() {
       ) : (
         <div className="space-y-3">
           {customersData?.data?.map((customer: Customer) => (
-            <Card key={customer.id} className="hover:shadow-md transition-shadow">
-              <CardContent className="p-3">
-                {/* ── Top row: avatar + name + actions ── */}
-                <div className="flex items-center gap-3">
-                  <div className="p-2.5 bg-primary/10 rounded-full flex-shrink-0">
-                    <User className="w-5 h-5 text-primary" />
-                  </div>
-
-                  {/* Name + phone */}
+            <div key={customer.id} className="bg-white rounded-2xl border border-border shadow-sm active:scale-[0.99] transition-all">
+              <div className="p-3">
+                {/* Row 1: name + badge + action icons */}
+                <div className="flex items-start gap-2">
+                  {/* Name block */}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5 flex-wrap">
-                      <p className="font-semibold text-sm">{customer.name}</p>
+                      <span className="font-bold text-sm leading-tight">{customer.name}</span>
                       {getTypeBadge(customer.customer_type)}
                       {customer.category_name && (
                         <span className="px-1.5 py-0.5 rounded-full text-xs font-medium text-white"
@@ -1279,81 +1268,71 @@ export default function CustomersPage() {
                         </span>
                       )}
                     </div>
-                    <div className="flex items-center gap-3 mt-0.5 text-xs text-text-secondary">
-                      <span className="flex items-center gap-1">
-                        <Phone className="w-3 h-3" />{formatPhone(customer.phone)}
-                      </span>
-                      {customer.company_name && (
-                        <span className="flex items-center gap-1 truncate">
-                          <Building className="w-3 h-3 flex-shrink-0" />{customer.company_name}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Action buttons — always visible, compact */}
-                  <div className="flex items-center gap-1 flex-shrink-0">
-                    {(customer.current_debt > 0 || Number(customer.current_debt_usd) > 0) && (
-                      <button onClick={() => handlePayClick(customer)}
-                        className="flex items-center gap-1 bg-success text-white rounded-lg px-2 py-1.5 text-xs font-semibold hover:bg-success/90 active:scale-95 transition-all">
-                        <Banknote className="w-3.5 h-3.5" />
-                        <span className="hidden sm:inline">To'lov</span>
-                      </button>
+                    <a href={`tel:${customer.phone}`}
+                      className="flex items-center gap-1 mt-0.5 text-xs text-primary font-medium"
+                      onClick={(e) => e.stopPropagation()}>
+                      <Phone className="w-3 h-3" />
+                      <span className="whitespace-nowrap">{formatPhone(customer.phone)}</span>
+                    </a>
+                    {customer.company_name && (
+                      <p className="text-xs text-gray-400 mt-0.5 truncate">{customer.company_name}</p>
                     )}
-                    <button onClick={() => handleAddDebtClick(customer)}
-                      className="p-1.5 rounded-lg border border-orange-300 text-orange-500 hover:bg-orange-50 active:scale-95 transition-all" title="Qarz qo'shish">
-                      <Plus className="w-3.5 h-3.5" />
+                  </div>
+                  {/* Icon actions */}
+                  <div className="flex items-center gap-1 flex-shrink-0 mt-0.5">
+                    <button onClick={() => handleDetailClick(customer)}
+                      className="w-8 h-8 flex items-center justify-center rounded-xl border border-border text-gray-500 active:bg-gray-100">
+                      <Eye className="w-4 h-4" />
                     </button>
                     <button onClick={() => handleEditClick(customer)}
-                      className="p-1.5 rounded-lg border border-border text-text-secondary hover:bg-gray-50 active:scale-95 transition-all">
-                      <Edit className="w-3.5 h-3.5" />
-                    </button>
-                    <button onClick={() => handleDetailClick(customer)}
-                      className="p-1.5 rounded-lg border border-border text-text-secondary hover:bg-gray-50 active:scale-95 transition-all">
-                      <Eye className="w-3.5 h-3.5" />
+                      className="w-8 h-8 flex items-center justify-center rounded-xl border border-border text-gray-500 active:bg-gray-100">
+                      <Edit className="w-4 h-4" />
                     </button>
                     <button onClick={() => handleDeleteClick(customer)}
-                      className="p-1.5 rounded-lg border border-border text-danger hover:bg-danger hover:text-white active:scale-95 transition-all">
-                      <Trash2 className="w-3.5 h-3.5" />
+                      className="w-8 h-8 flex items-center justify-center rounded-xl border border-red-200 text-danger active:bg-red-50">
+                      <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
                 </div>
 
-                {/* ── Bottom row: stats chips ── */}
-                {(customer.current_debt > 0 || Number(customer.current_debt_usd) > 0 || customer.total_purchases > 0) && (
-                  <div className="flex items-center gap-2 mt-2.5 flex-wrap">
-                    {customer.total_purchases > 0 && (
-                      <div className="flex items-center gap-1 bg-blue-50 rounded-lg px-2 py-1">
-                        <span className="text-xs text-blue-500">Xarid:</span>
-                        <span className="text-xs font-semibold text-blue-700 whitespace-nowrap">{formatMoney(customer.total_purchases)}</span>
-                      </div>
-                    )}
+                {/* Row 2: debt info + pay/add buttons */}
+                <div className="flex items-center justify-between gap-2 mt-2.5">
+                  {/* Debt chips */}
+                  <div className="flex flex-wrap gap-1.5 flex-1 min-w-0">
                     {customer.current_debt > 0 && (
-                      <div className="flex items-center gap-1 bg-red-50 rounded-lg px-2 py-1">
-                        <span className="w-1.5 h-1.5 rounded-full bg-green-500 flex-shrink-0"></span>
-                        <span className="text-xs text-gray-500">Qarz:</span>
-                        <span className="text-xs font-bold text-danger whitespace-nowrap">{formatMoney(customer.current_debt)}</span>
-                      </div>
+                      <span className="inline-flex items-center gap-1 bg-red-50 border border-red-100 rounded-lg px-2 py-1 text-xs font-bold text-danger whitespace-nowrap">
+                        <span className="w-1.5 h-1.5 rounded-full bg-red-400"></span>
+                        {formatMoney(customer.current_debt)}
+                      </span>
                     )}
                     {Number(customer.current_debt_usd) > 0 && (
-                      <div className="flex items-center gap-1 bg-blue-50 border border-blue-100 rounded-lg px-2 py-1">
-                        <span className="w-1.5 h-1.5 rounded-full bg-blue-500 flex-shrink-0"></span>
-                        <span className="text-xs text-gray-500">Qarz:</span>
-                        <span className="text-xs font-bold text-blue-600 whitespace-nowrap">
-                          ${Number(customer.current_debt_usd).toLocaleString('ru-RU',{minimumFractionDigits:2,maximumFractionDigits:2})}
-                        </span>
-                      </div>
+                      <span className="inline-flex items-center gap-1 bg-blue-50 border border-blue-100 rounded-lg px-2 py-1 text-xs font-bold text-blue-600 whitespace-nowrap">
+                        <span className="w-1.5 h-1.5 rounded-full bg-blue-400"></span>
+                        ${Number(customer.current_debt_usd).toLocaleString('ru-RU',{minimumFractionDigits:2,maximumFractionDigits:2})}
+                      </span>
                     )}
-                    {customer.advance_balance > 0 && (
-                      <div className="flex items-center gap-1 bg-green-50 rounded-lg px-2 py-1">
-                        <span className="text-xs text-gray-500">Avans:</span>
-                        <span className="text-xs font-bold text-success whitespace-nowrap">{formatMoney(customer.advance_balance)}</span>
-                      </div>
+                    {customer.current_debt === 0 && Number(customer.current_debt_usd) === 0 && (
+                      <span className="text-xs text-green-600 font-medium">✓ Qarz yo'q</span>
                     )}
                   </div>
-                )}
-              </CardContent>
-            </Card>
+                  {/* Pay + add buttons */}
+                  <div className="flex gap-1.5 flex-shrink-0">
+                    {(customer.current_debt > 0 || Number(customer.current_debt_usd) > 0) && (
+                      <button onClick={() => handlePayClick(customer)}
+                        className="flex items-center gap-1 bg-success text-white rounded-xl px-3 py-1.5 text-xs font-bold active:scale-95 transition-all">
+                        <Banknote className="w-3.5 h-3.5" />
+                        To'lov
+                      </button>
+                    )}
+                    <button onClick={() => handleAddDebtClick(customer)}
+                      className="flex items-center gap-1 border border-orange-300 text-orange-600 rounded-xl px-2.5 py-1.5 text-xs font-bold active:scale-95 transition-all">
+                      <Plus className="w-3.5 h-3.5" />
+                      Qarz
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
           ))}
 
           {customersData?.data?.length === 0 && (
