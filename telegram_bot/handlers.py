@@ -16,7 +16,7 @@ from aiogram.types import (
     Message, CallbackQuery,
     ReplyKeyboardMarkup, KeyboardButton,
     InlineKeyboardMarkup, InlineKeyboardButton,
-    ReplyKeyboardRemove
+    ReplyKeyboardRemove, BufferedInputFile
 )
 from aiogram.filters import CommandStart, Command
 from aiogram.enums import ParseMode
@@ -48,6 +48,7 @@ def main_menu_keyboard() -> InlineKeyboardMarkup:
         [InlineKeyboardButton(text="📋 Xarid tarixim", callback_data="my_purchases")],
         [InlineKeyboardButton(text="💳 To'lovlar tarixi", callback_data="my_payments")],
         [InlineKeyboardButton(text="👤 Mening ma'lumotlarim", callback_data="my_info")],
+        [InlineKeyboardButton(text="📊 Hisobotni yuklab olish", callback_data="download_report")],
         [InlineKeyboardButton(text="📞 Aloqa", callback_data="contact_info")],
     ])
 
@@ -316,8 +317,13 @@ async def handle_my_debt(callback: CallbackQuery):
         f"",
     ]
 
-    if current_debt > 0:
-        lines.append(f"🔴 <b>Joriy qarz: {fmt_money(current_debt)} so'm</b>")
+    current_debt_usd = float(debt_info.get("current_debt_usd", 0))
+
+    if current_debt > 0 or current_debt_usd > 0:
+        if current_debt > 0:
+            lines.append(f"🔴 <b>Qarz (so'm): {fmt_money(current_debt)} so'm</b>")
+        if current_debt_usd > 0:
+            lines.append(f"🔵 <b>Qarz ($): ${current_debt_usd:,.2f}</b>")
     else:
         lines.append(f"✅ <b>Qarzingiz yo'q!</b>")
 
@@ -610,7 +616,11 @@ async def handle_my_info(callback: CallbackQuery):
         "━━━━━━━━━━━━━━━━━",
         f"💵 <b>MOLIYAVIY</b>",
         "",
-        f"🔴 Joriy qarz: <b>{fmt_money(info.get('current_debt', 0))} so'm</b>",
+        f"🔴 Joriy qarz (so'm): <b>{fmt_money(info.get('current_debt', 0))} so'm</b>",
+    ])
+    if float(info.get("current_debt_usd", 0)) > 0:
+        lines.append(f"🔵 Joriy qarz ($): <b>${float(info.get('current_debt_usd', 0)):,.2f}</b>")
+    lines.extend([
         f"💚 Avans: <b>{fmt_money(info.get('advance_balance', 0))} so'm</b>",
     ])
 
@@ -643,6 +653,86 @@ async def handle_contact_info(callback: CallbackQuery):
         parse_mode=ParseMode.HTML
     )
     await callback.answer()
+
+
+
+# ═══════════════════════════════════════
+#  📊 DOWNLOAD EXCEL REPORT
+# ═══════════════════════════════════════
+
+@router.callback_query(F.data == "download_report")
+async def handle_download_report(callback: CallbackQuery):
+    """Generate and send customer Excel report."""
+    telegram_id = str(callback.from_user.id)
+    customer = await get_linked_customer(telegram_id)
+
+    if not customer:
+        await callback.message.edit_text("❌ Sessiya tugadi. /start buyrug'ini yuboring.")
+        await callback.answer()
+        return
+
+    await callback.answer("⏳ Hisobot tayyorlanmoqda...")
+
+    # Show loading message
+    await callback.message.edit_text(
+        f"⏳ <b>{customer['name']}</b> uchun hisobot tayyorlanmoqda...\n\n"
+        f"Biroz kuting...",
+        parse_mode="HTML"
+    )
+
+    try:
+        from datetime import datetime
+        import httpx as _httpx
+
+        # Download Excel directly from API — no local generation needed
+        api_url = f"http://api:8000/internal/bot/customer/{customer['id']}/excel-report"
+        async with _httpx.AsyncClient(timeout=30.0) as client:
+            resp = await client.get(api_url)
+
+        if resp.status_code != 200:
+            await callback.message.edit_text(
+                "❌ Hisobotni yuklab bo'lmadi. Keyinroq urinib ko'ring.",
+                reply_markup=back_to_menu_keyboard()
+            )
+            return
+
+        excel_bytes = resp.content
+        date_str = datetime.now().strftime("%d-%m-%Y")
+        filename = f"{customer['name'].replace(' ', '_')}_{date_str}.xlsx"
+
+        # Get fresh data for caption
+        fresh = await customer_api.get_customer_report_data(customer["id"])
+        debt_uzs = fresh["customer"]["current_debt"] if fresh else 0
+        debt_usd = fresh["customer"]["current_debt_usd"] if fresh else 0
+        sales_count = len(fresh["sales"]) if fresh else 0
+
+        caption = (
+            f"📊 <b>{customer['name']}</b> - To'liq hisobot\n"
+            f"📅 {datetime.now().strftime('%d.%m.%Y %H:%M')}\n\n"
+            f"💰 So'm qarz: <b>{debt_uzs:,.0f} so'm</b>\n"
+        )
+        if debt_usd > 0:
+            caption += f"💵 Dollar qarz: <b>${debt_usd:,.2f}</b>\n"
+        caption += f"🛒 Jami xaridlar: <b>{sales_count} ta</b>"
+
+        await callback.message.answer_document(
+            document=BufferedInputFile(excel_bytes, filename=filename),
+            caption=caption,
+            parse_mode="HTML"
+        )
+
+        await callback.message.edit_text(
+            f"✅ Hisobot yuborildi!\n\n👤 {customer['name']}",
+            reply_markup=main_menu_keyboard(),
+            parse_mode="HTML"
+        )
+
+    except Exception as e:
+        logger.error(f"Excel report error: {e}", exc_info=True)
+        await callback.message.edit_text(
+            "❌ Hisobot yaratishda xatolik yuz berdi.",
+            reply_markup=back_to_menu_keyboard()
+        )
 
 
 # ═══════════════════════════════════════

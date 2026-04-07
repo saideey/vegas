@@ -227,7 +227,10 @@ class CustomerService:
             if hasattr(customer, field):
                 # customer_type enum must be uppercase in DB
                 if field == 'customer_type' and isinstance(value, str):
-                    value = value.upper()
+                    try:
+                        value = CustomerType[value.upper()]
+                    except KeyError:
+                        value = CustomerType.REGULAR
                 setattr(customer, field, value)
 
         # Handle debt adjustment if provided

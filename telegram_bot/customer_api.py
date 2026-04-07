@@ -110,5 +110,12 @@ class CustomerAPI:
         return None
 
 
+    async def get_customer_report_data(self, customer_id: int):
+        """Get all data for customer Excel report."""
+        result = await self._get(f"/customer/{customer_id}/full-report")
+        if result and result.get("success"):
+            return result["data"]
+        return None
+
 # Global instance
 customer_api = CustomerAPI()
